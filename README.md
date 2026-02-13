@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # controle_instrumentos
 
 A new Flutter project.
@@ -14,3 +15,6 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+=======
+# controle-instrumentos-app
+>>>>>>> 62d8931e8132c91693962436ce56cb8e8700bc7a
