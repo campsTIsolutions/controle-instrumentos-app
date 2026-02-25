@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    
+    {
+      "name": "Flutter Dev (Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "args": [
+        "--dart-define=SUPABASE_URL=https://ylcfdbonhrvvbclinado.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_YopOGM9CpLfvJXXiKNTHJw_Tx1RtZDn"
+      ]
+    }
+  ]
+}

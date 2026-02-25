@@ -6,13 +6,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Controle de Instrumentos',
       debugShowCheckedModeBanner: false,
-      title: 'Controle Instrumentos',
-      home: const Scaffold(
-        body: Center(
-          child: Text('App iniciado 🚀'),
-        ),
-      ),
+      theme: ThemeData(useMaterial3: true),
+      home: const Placeholder(), // depois vira AuthGate
     );
   }
 }
