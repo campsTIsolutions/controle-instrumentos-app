@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Controle Instrumentos (F5)",
+            "request": "launch",
+            "type": "dart",
+            "args": [
+                "-d",
+                "edge",
+                "--web-port",
+                "8080",
+                "--web-browser-flag",
+                "--no-sandbox"
+            ]
+        }
+    ]
+}
