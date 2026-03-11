@@ -4,6 +4,7 @@ import '../data/instruments_repository.dart';
 import 'widgets/instrumento_card.dart';
 import 'widgets/app_drawer.dart';
 import 'widgets/perfil_drawer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class InstrumentosPage extends StatefulWidget {
   const InstrumentosPage({super.key});
@@ -61,12 +62,14 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
         actions: [
           Builder(
             builder: (context) => IconButton(
+              
               icon: SizedBox(
                 width: 24,
                 height: 24,
                 child: Image.asset("assets/profile.png"),
               ),
               onPressed: () async {
+                
                 final RenderBox button = context.findRenderObject() as RenderBox;
                 final RenderBox overlay =
                     Overlay.of(context).context.findRenderObject() as RenderBox;
@@ -84,56 +87,49 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
                   ),
                   Offset.zero & overlay.size,
                 );
-
+                final user = Supabase.instance.client.auth.currentUser;
+                final nomeUsuario = user?.userMetadata?['name'] ?? "Usuário";
                 final result = await showMenu<String>(
                   context: context,
                   position: position,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  elevation: 8,
-                  color: Colors.white,
                   items: [
-                    const PopupMenuItem<String>(
-                      value: 'perfil',
+                    PopupMenuItem<String>(
+                      enabled: false,
                       child: Row(
                         children: [
-                          Icon(Icons.person_outline),
-                          SizedBox(width: 10),
-                          Text('Perfil'),
+                          const Icon(Icons.person_outline),
+                          const SizedBox(width: 10),
+                          Text(
+                            nomeUsuario,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ],
                       ),
                     ),
-                    const PopupMenuItem<String>(
-                      value: 'config',
-                      child: Row(
-                        children: [
-                          Icon(Icons.settings_outlined),
-                          SizedBox(width: 10),
-                          Text('Configurações'),
-                        ],
-                      ),
-                    ),
+
                     const PopupMenuDivider(),
+
                     const PopupMenuItem<String>(
-                      value: 'sair',
+                      value: 'logout',
                       child: Row(
                         children: [
-                          Icon(Icons.logout),
+                          Icon(Icons.logout, color: Colors.red),
                           SizedBox(width: 10),
-                          Text('Sair'),
+                          Text(
+                            'Sair',
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ],
                       ),
                     ),
                   ],
                 );
 
-                if (result == 'perfil') {
-                  debugPrint('Ir para perfil');
-                } else if (result == 'config') {
-                  debugPrint('Ir para configurações');
-                } else if (result == 'sair') {
-                  debugPrint('Sair');
+                if (result == 'logout') {
+                  // rota de logout você coloca depois
                 }
               },
             ),
