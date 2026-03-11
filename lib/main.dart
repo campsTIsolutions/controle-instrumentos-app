@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:controle_instrumentos/features/instrumentos/ui/instrumentos_page.dart';
 import 'features/login/login_page.dart';
 
 void main() async {
@@ -12,11 +13,14 @@ void main() async {
     anonKey: 'sb_publishable_YopOGM9CpLfvJXXiKNTHJw_Tx1RtZDn',
   );
 
-  runApp(const MyApp());
+  final session = Supabase.instance.client.auth.currentSession;
+  runApp(MyApp(hasSession: session != null));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.hasSession});
+
+  final bool hasSession;
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +35,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const LoginPage(),
+      home: hasSession ? const InstrumentosPage() : const LoginPage(),
     );
   }
 }

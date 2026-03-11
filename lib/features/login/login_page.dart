@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Importação do Supabase
+import 'package:controle_instrumentos/features/instrumentos/ui/instrumentos_page.dart';
 import 'register_page.dart'; // Certifique-se de criar este arquivo
 
 class LoginPage extends StatefulWidget {
@@ -31,7 +32,10 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (response.user != null && mounted) {
-        // Sucesso! Aqui você redirecionaria para a Home
+        // Sucesso: substitui a rota de login pela tela de instrumentos.
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const InstrumentosPage()),
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Login realizado com sucesso!")),
         );
