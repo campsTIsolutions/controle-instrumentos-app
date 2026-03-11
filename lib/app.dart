@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:controle_instrumentos/features/instrumentos/ui/instrumentos_page.dart';
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -7,12 +7,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Controle Instrumentos',
-      home: const Scaffold(
-        body: Center(
-          child: Text('App iniciado 🚀'),
-        ),
-      ),
+      theme: ThemeData(fontFamily: 'Poppins'),
+      home: const InstrumentosPage(),
     );
   }
 }
