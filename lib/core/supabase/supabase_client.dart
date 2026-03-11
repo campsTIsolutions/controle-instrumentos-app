@@ -1,3 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-SupabaseClient get supabase => Supabase.instance.client;
+class AppSupabase {
+  AppSupabase._();
+
+  static SupabaseClient get client => Supabase.instance.client;
+}
