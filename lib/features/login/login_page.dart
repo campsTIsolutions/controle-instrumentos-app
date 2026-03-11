@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Importação do Supabase
 import 'register_page.dart'; // Certifique-se de criar este arquivo
+import '../instrumentos/ui/instrumentos_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -35,6 +36,12 @@ class _LoginPageState extends State<LoginPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Login realizado com sucesso!")),
         );
+        Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+        builder: (context) => const InstrumentosPage(),
+    ),
+  );
       }
     } catch (e) {
       if (mounted) {
