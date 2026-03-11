@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:controle_instrumentos/features/login/login_page.dart';
 import '../data/instruments_repository.dart';
 import 'widgets/instrumento_card.dart';
 class InstrumentosPage extends StatefulWidget {
@@ -11,6 +13,15 @@ class InstrumentosPage extends StatefulWidget {
 class _InstrumentosPageState extends State<InstrumentosPage> {
   final repo = InstrumentsRepository();
   late final Future<List<Map<String, dynamic>>> futureInstrumentos;
+
+  Future<void> _logout() async {
+    await Supabase.instance.client.auth.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (_) => false,
+    );
+  }
 
   @override
   void initState() {
@@ -47,6 +58,11 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
           child: Divider(height: 1, color: Colors.grey),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: "Sair",
+            onPressed: _logout,
+          ),
           IconButton(
             icon: SizedBox(
               width: 24,
