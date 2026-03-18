@@ -137,7 +137,12 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
                 } else if (result == 'config') {
                   debugPrint('Ir para configurações');
                 } else if (result == 'sair') {
-                  debugPrint('Sair');
+                  await Supabase.instance.client.auth.signOut();
+                  if (!context.mounted) return;
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                    (route) => false,
+                  );
                 }
               },
             ),

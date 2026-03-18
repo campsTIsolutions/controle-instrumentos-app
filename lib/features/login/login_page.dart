@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Importação do Supabase
+import 'package:controle_instrumentos/features/instrumentos/ui/instrumentos_page.dart';
 import 'register_page.dart'; // Certifique-se de criar este arquivo
-import 'package:controle_instrumentos/features/alunos/alunos_page.dart';
 import 'forgot_password_page.dart'; // ADICIONADO: Import da sua nova página
 
 class LoginPage extends StatefulWidget {
@@ -32,11 +32,11 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text.trim(),
       );
 
-      // DEPOIS (navega para a tela de Alunos)
+      // DEPOIS (navega para a tela principal)
       if (response.user != null && mounted) {
-        // Sucesso: substitui a rota de login pela tela de alunos.
+        // Sucesso: substitui a rota de login pela tela principal.
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AlunosPage()),
+          MaterialPageRoute(builder: (_) => const InstrumentosPage()),
         );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Login realizado com sucesso!")),
