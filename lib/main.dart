@@ -1,7 +1,8 @@
+import 'package:controle_instrumentos/features/chamada/tela_chamada.dart';
+import 'package:controle_instrumentos/features/login/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'features/login/login_page.dart';
-import 'features/alunos/alunos_page.dart';
+//import 'package:controle_instrumentos/features/chamada/ui/presenca_page.dart';
 
 void main() async {
   // Garante a inicialização dos componentes do Flutter
@@ -13,14 +14,11 @@ void main() async {
     anonKey: 'sb_publishable_YopOGM9CpLfvJXXiKNTHJw_Tx1RtZDn',
   );
 
-  final session = Supabase.instance.client.auth.currentSession;
-  runApp(MyApp(hasSession: session != null));
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, required this.hasSession});
-
-  final bool hasSession;
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -31,11 +29,11 @@ class MyApp extends StatelessWidget {
         // Tema configurado para combinar com o seu layout Dark/Roxo
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF4D00FF),
-          brightness: Brightness.light,
+          brightness: Brightness.dark,
         ),
         useMaterial3: true,
       ),
-      home: hasSession ? const AlunosPage() : const LoginPage(),
+      home: const CampsApp(),
     );
   }
 }
