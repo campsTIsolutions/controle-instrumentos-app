@@ -32,6 +32,33 @@ class _AlunosPageState extends State<AlunosPage> {
     _carregarAlunos();
   }
 
+  String _formatarErro(Object error) {
+    if (error is PostgrestException) {
+      final detalhes = <String>[
+        if (error.message.isNotEmpty) error.message,
+        if (error.details != null && error.details.toString().isNotEmpty)
+          error.details.toString(),
+        if (error.hint != null && error.hint!.isNotEmpty) 'Dica: ${error.hint!}',
+        if (error.code != null) 'Codigo: ${error.code}',
+      ];
+      return detalhes.join(' | ');
+    }
+    if (error is AuthException) {
+      return error.message;
+    }
+    return error.toString();
+  }
+
+  void _mostrarErro(String contexto, Object error) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$contexto: ${_formatarErro(error)}'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -41,6 +68,12 @@ class _AlunosPageState extends State<AlunosPage> {
   Future<void> _carregarAlunos() async {
     setState(() => _isLoading = true);
     try {
+      if (_supabase.auth.currentSession == null) {
+        throw Exception(
+          'Sessão não encontrada. Faça login antes de acessar os alunos.',
+        );
+      }
+
       final response = await _supabase
           .from('alunos')
           .select(
@@ -56,12 +89,7 @@ class _AlunosPageState extends State<AlunosPage> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao carregar alunos: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _mostrarErro('Erro ao carregar alunos', e);
       }
     }
   }
@@ -139,14 +167,7 @@ class _AlunosPageState extends State<AlunosPage> {
         await _supabase.from('alunos').delete().eq('id_aluno', id);
         _carregarAlunos();
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erro ao excluir: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        _mostrarErro('Erro ao excluir', e);
       }
     }
   }
@@ -160,16 +181,27 @@ class _AlunosPageState extends State<AlunosPage> {
       builder: (ctx) => _AlunoDialog(
         aluno: aluno,
         onSalvar: (dados) async {
-          if (aluno == null) {
-            await _supabase.from('alunos').insert(dados);
-          } else {
-            await _supabase
-                .from('alunos')
-                .update(dados)
-                .eq('id_aluno', aluno['id_aluno']);
+          try {
+            if (_supabase.auth.currentSession == null) {
+              throw Exception(
+                'Sessão não encontrada. Faça login antes de salvar alunos.',
+              );
+            }
+
+            if (aluno == null) {
+              await _supabase.from('alunos').insert(dados);
+            } else {
+              await _supabase
+                  .from('alunos')
+                  .update(dados)
+                  .eq('id_aluno', aluno['id_aluno']);
+            }
+            if (!ctx.mounted) return;
+            Navigator.of(ctx).pop();
+            _carregarAlunos();
+          } catch (e) {
+            _mostrarErro('Erro ao salvar aluno', e);
           }
-          if (mounted) Navigator.pop(ctx);
-          _carregarAlunos();
         },
       ),
     );
@@ -346,6 +378,8 @@ class _AlunosPageState extends State<AlunosPage> {
                     alunos: _alunosPaginados,
                     currentPage: _currentPage,
                     itensPorPagina: _itensPorPagina,
+                    onEditar: (a) => _abrirDialogAluno(aluno: a),
+                    onDeletar: (a) => _deletarAluno(a['id_aluno'] as int),
                   )
                 else
                   _ListaCards(
@@ -367,7 +401,7 @@ class _AlunosPageState extends State<AlunosPage> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 4,
                       ),
                     ],
@@ -417,11 +451,15 @@ class _TabelaDesktop extends StatelessWidget {
     required this.alunos,
     required this.currentPage,
     required this.itensPorPagina,
+    required this.onEditar,
+    required this.onDeletar,
   });
 
   final List<Map<String, dynamic>> alunos;
   final int currentPage;
   final int itensPorPagina;
+  final void Function(Map<String, dynamic>) onEditar;
+  final void Function(Map<String, dynamic>) onDeletar;
 
   @override
   Widget build(BuildContext context) {
@@ -434,7 +472,7 @@ class _TabelaDesktop extends StatelessWidget {
           topRight: Radius.circular(12),
         ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4),
         ],
       ),
       child: Column(
@@ -452,8 +490,8 @@ class _TabelaDesktop extends StatelessWidget {
               return _TabelaLinha(
                 numero: numero,
                 aluno: aluno,
-                onEditar: () {},
-                onDeletar: () {},
+                onEditar: () => onEditar(aluno),
+                onDeletar: () => onDeletar(aluno),
               );
             },
           ),
@@ -493,7 +531,7 @@ class _ListaCards extends StatelessWidget {
           topRight: Radius.circular(12),
         ),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4),
         ],
       ),
       child: ListView.separated(
@@ -1388,7 +1426,7 @@ class _CampoDropdown extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
-          value: valor,
+          initialValue: valor,
           hint: Text(hint, style: const TextStyle(color: Colors.black38)),
           validator: validator,
           onChanged: onChanged,
