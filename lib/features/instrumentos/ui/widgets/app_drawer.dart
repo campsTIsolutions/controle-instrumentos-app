@@ -39,13 +39,13 @@ class AppDrawer extends StatelessWidget {
               leading: const Icon(Icons.article),
               title: const Text('Chamada'),
               onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const LoginPage(),
-                ),
-              );
+                final navigator = Navigator.of(context);
+                navigator.pop();
+                navigator.push(
+                  MaterialPageRoute(
+                    builder: (context) => const LoginPage(),
+                  ),
+                );
               },
             ),
 
@@ -53,8 +53,9 @@ class AppDrawer extends StatelessWidget {
               leading: const Icon(Icons.person),
               title: const Text('Alunos'),
               onTap: () {
-                Navigator.pop(context);
-                Navigator.of(context).pushReplacement(
+                final navigator = Navigator.of(context);
+                navigator.pop();
+                navigator.pushReplacement(
                   MaterialPageRoute(builder: (_) => const AlunosPage()),
                 );
               },
