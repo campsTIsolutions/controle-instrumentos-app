@@ -1,5 +1,7 @@
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:controle_instrumentos/features/login/login_page.dart';
 import '../data/instruments_repository.dart';
 import 'widgets/instrumento_card.dart';
 import 'widgets/app_drawer.dart';
@@ -17,6 +19,14 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
   final repo = InstrumentsRepository();
   late final Future<List<Map<String, dynamic>>> futureInstrumentos;
 
+  Future<void> _logout() async {
+    await Supabase.instance.client.auth.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (_) => false,
+    );
+  }
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -221,4 +231,4 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
       ),
     );
   }
-} 
+}

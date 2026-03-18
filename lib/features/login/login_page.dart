@@ -33,16 +33,13 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       if (response.user != null && mounted) {
-        // Sucesso! Aqui você redirecionaria para a Home
+        // Sucesso: substitui a rota de login pela tela de instrumentos.
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const InstrumentosPage()),
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Login realizado com sucesso!")),
         );
-        Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-        builder: (context) => const InstrumentosPage(),
-    ),
-  );
       }
     } catch (e) {
       if (mounted) {
