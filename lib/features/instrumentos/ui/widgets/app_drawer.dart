@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:controle_instrumentos/features/alunos/alunos_page.dart';
 import '../../../login/login_page.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -38,13 +39,13 @@ class AppDrawer extends StatelessWidget {
               leading: const Icon(Icons.article),
               title: const Text('Chamada'),
               onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const LoginPage(),
-                ),
-              );
+                final navigator = Navigator.of(context);
+                navigator.pop();
+                navigator.push(
+                  MaterialPageRoute(
+                    builder: (context) => const LoginPage(),
+                  ),
+                );
               },
             ),
 
@@ -52,8 +53,11 @@ class AppDrawer extends StatelessWidget {
               leading: const Icon(Icons.person),
               title: const Text('Alunos'),
               onTap: () {
-                Navigator.pop(context);
-
+                final navigator = Navigator.of(context);
+                navigator.pop();
+                navigator.pushReplacement(
+                  MaterialPageRoute(builder: (_) => const AlunosPage()),
+                );
               },
             ),
           ],
