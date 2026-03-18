@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Importação do Supabase
 import 'register_page.dart'; // Certifique-se de criar este arquivo
 import '../instrumentos/ui/instrumentos_page.dart';
+import 'forgot_password_page.dart'; // ADICIONADO: Import da sua nova página
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -124,7 +125,15 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 12),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        // ATUALIZADO: Agora abre a página de recuperação
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SimpleForgotPage(),
+                          ),
+                        );
+                      },
                       style: TextButton.styleFrom(padding: EdgeInsets.zero),
                       child: const Text(
                         'Esqueci minha senha',
