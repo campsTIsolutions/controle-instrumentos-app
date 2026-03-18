@@ -1,4 +1,5 @@
 
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:controle_instrumentos/features/login/login_page.dart';
@@ -6,7 +7,6 @@ import '../data/instruments_repository.dart';
 import 'widgets/instrumento_card.dart';
 import 'widgets/app_drawer.dart';
 import 'widgets/perfil_drawer.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class InstrumentosPage extends StatefulWidget {
   const InstrumentosPage({super.key});
@@ -19,14 +19,6 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
   final repo = InstrumentsRepository();
   late final Future<List<Map<String, dynamic>>> futureInstrumentos;
 
-  Future<void> _logout() async {
-    await Supabase.instance.client.auth.signOut();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginPage()),
-      (_) => false,
-    );
-  }
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -41,6 +33,7 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
       key: _scaffoldKey,
       drawer: const AppDrawer(),
       endDrawer: const PerfilDrawer(),
+
       appBar: AppBar(
         leading: IconButton(
           icon: SizedBox(
@@ -72,14 +65,12 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
         actions: [
           Builder(
             builder: (context) => IconButton(
-              
               icon: SizedBox(
                 width: 24,
                 height: 24,
                 child: Image.asset("assets/profile.png"),
               ),
               onPressed: () async {
-                
                 final RenderBox button = context.findRenderObject() as RenderBox;
                 final RenderBox overlay =
                     Overlay.of(context).context.findRenderObject() as RenderBox;
@@ -97,130 +88,143 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
                   ),
                   Offset.zero & overlay.size,
                 );
-                final user = Supabase.instance.client.auth.currentUser;
-                final nomeUsuario = user?.userMetadata?['name'] ?? "Usuário";
+
                 final result = await showMenu<String>(
                   context: context,
                   position: position,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
+                  elevation: 8,
+                  color: Colors.white,
                   items: [
-                    PopupMenuItem<String>(
-                      enabled: false,
+                    const PopupMenuItem<String>(
+                      value: 'perfil',
                       child: Row(
                         children: [
-                          const Icon(Icons.person_outline),
-                          const SizedBox(width: 10),
-                          Text(
-                            nomeUsuario,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                          Icon(Icons.person_outline),
+                          SizedBox(width: 10),
+                          Text('Perfil'),
                         ],
                       ),
                     ),
-
-                    const PopupMenuDivider(),
-
                     const PopupMenuItem<String>(
-                      value: 'logout',
+                      value: 'config',
                       child: Row(
                         children: [
-                          Icon(Icons.logout, color: Colors.red),
+                          Icon(Icons.settings_outlined),
                           SizedBox(width: 10),
-                          Text(
-                            'Sair',
-                            style: TextStyle(color: Colors.red),
-                          ),
+                          Text('Configurações'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem<String>(
+                      value: 'sair',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout),
+                          SizedBox(width: 10),
+                          Text('Sair'),
                         ],
                       ),
                     ),
                   ],
                 );
 
-                if (result == 'logout') {
-                  // rota de logout você coloca depois
+                if (result == 'perfil') {
+                  debugPrint('Ir para perfil');
+                } else if (result == 'config') {
+                  debugPrint('Ir para configurações');
+                } else if (result == 'sair') {
+                  debugPrint('Sair');
                 }
               },
             ),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 15),
-          const Text(
-            "Controle de Instrumentos",
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+body: Column(
+  children: [
+    const SizedBox(height: 15),
+
+    const Text(
+      "Controle de Instrumentos",
+      style: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+
+    const SizedBox(height: 12),
+
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: TextField(
+        decoration: InputDecoration(
+          hintText: "Pesquisar instrumento...",
+          prefixIcon: const Icon(Icons.search),
+          filled: true,
+          fillColor: const Color.fromARGB(255, 255, 255, 255),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
           ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: "Pesquisar instrumento...",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: const Color.fromARGB(255, 255, 255, 255),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+        ),
+      ),
+    ),
+
+    const SizedBox(height: 15),
+
+    Expanded(
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: futureInstrumentos,
+        builder: (context, snapshot) {
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return ListView(
+              padding: const EdgeInsets.all(12),
+              children: const [
+                InstrumentoCard(
+                  nome: "Violão Tagima",
+                  tipo: "Cordas",
+                  aluno: "Murilo",
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 15),
-          Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: futureInstrumentos,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+                InstrumentoCard(
+                  nome: "Bateria Pearl",
+                  tipo: "Percussão",
+                  aluno: "Carlos",
+                ),
+              ],
+            );
+          }
 
-                if (snapshot.hasError) {
-                  return ListView(
-                    padding: const EdgeInsets.all(12),
-                    children: const [
-                      InstrumentoCard(
-                        nome: "Violão Tagima",
-                        tipo: "Cordas",
-                        aluno: "Murilo",
-                      ),
-                      InstrumentoCard(
-                        nome: "Bateria Pearl",
-                        tipo: "Percussão",
-                        aluno: "Carlos",
-                      ),
-                    ],
-                  );
-                }
+          final instrumentos = snapshot.data ?? [];
 
-                final instrumentos = snapshot.data ?? [];
+          if (instrumentos.isEmpty) {
+            return const Center(
+              child: Text("Nenhum instrumento cadastrado."),
+            );
+          }
 
-                if (instrumentos.isEmpty) {
-                  return const Center(
-                    child: Text("Nenhum instrumento cadastrado."),
-                  );
-                }
+          return ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: instrumentos.length,
+            itemBuilder: (context, index) {
+              final item = instrumentos[index];
 
-                return ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: instrumentos.length,
-                  itemBuilder: (context, index) {
-                    final item = instrumentos[index];
+              final nome = (item['nome'] ?? '').toString();
+              final tipo = (item['tipo'] ?? '').toString();
+              final aluno = (item['aluno'] ?? '').toString();
 
-                    final nome = (item['nome'] ?? '').toString();
-                    final tipo = (item['tipo'] ?? '').toString();
-                    final aluno = (item['aluno'] ?? '').toString();
-
-                    return InstrumentoCard(
-                      nome: nome,
-                      tipo: tipo,
-                      aluno: aluno,
+              return InstrumentoCard(
+                nome: nome,
+                tipo: tipo,
+                aluno: aluno,
                     );
                   },
                 );
@@ -231,4 +235,4 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
       ),
     );
   }
-}
+} 
