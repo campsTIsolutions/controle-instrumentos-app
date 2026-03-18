@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:controle_instrumentos/features/instrumentos/ui/instrumentos_page.dart';
 import 'features/login/login_page.dart';
+import 'features/instrumentos/ui/instrumentos_page.dart';
 
 void main() async {
   // Garante a inicialização dos componentes do Flutter

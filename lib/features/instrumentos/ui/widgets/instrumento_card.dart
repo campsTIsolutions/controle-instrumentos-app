@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+
 class InstrumentoCard extends StatelessWidget {
 
   final String nome;
@@ -36,7 +37,12 @@ class InstrumentoCard extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
+
+          const Divider(
+            height: 1,
+            thickness: 2,
+          ),
 
           Text("Tipo: $tipo"),
 
