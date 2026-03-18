@@ -13,11 +13,14 @@ void main() async {
     anonKey: 'sb_publishable_YopOGM9CpLfvJXXiKNTHJw_Tx1RtZDn',
   );
 
-  runApp(const MyApp());
+  final session = Supabase.instance.client.auth.currentSession;
+  runApp(MyApp(hasSession: session != null));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.hasSession});
+
+  final bool hasSession;
 
   @override
   Widget build(BuildContext context) {
@@ -28,11 +31,11 @@ class MyApp extends StatelessWidget {
         // Tema configurado para combinar com o seu layout Dark/Roxo
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF4D00FF),
-          brightness: Brightness.light,
+          brightness: Brightness.dark,
         ),
         useMaterial3: true,
       ),
-      home: const InstrumentosPage(),
+      home: hasSession ? const InstrumentosPage() : const LoginPage(),
     );
   }
 }

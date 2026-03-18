@@ -20,6 +20,7 @@ dev_dependencies:
   flutter_lints: ^3.0.0
 
 flutter:
+<<<<<<< HEAD
  
   uses-material-design: true
 
@@ -40,3 +41,8 @@ flutter:
            weight: 600
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+=======
+  uses-material-design: true
+  # Note que a parte de 'assets' foi removida daqui, 
+  # já que você apagou a pasta e a imagem.
+>>>>>>> 7e83cb0 (login page, tela de cadastro e conexão com o supabase bem sucedida)
