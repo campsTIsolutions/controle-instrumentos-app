@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:controle_instrumentos/features/instrumentos/ui/instrumentos_page.dart';
 
 class AlunosPage extends StatefulWidget {
   const AlunosPage({super.key});
@@ -224,19 +225,32 @@ class _AlunosPageState extends State<AlunosPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Título ──
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 20, 16, 10),
-                // MODIFICAÇÃO 4: padding horizontal reduzido de 20→16 para
-                // ganhar espaço útil em telas estreitas (< 360dp).
-                child: Text(
-                  'Alunos',
-                  style: TextStyle(
-                    fontSize: 26,
-                    // MODIFICAÇÃO 5: fonte levemente menor (28→26) para não
-                    // quebrar em dispositivos com fonte grande do sistema.
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A2E),
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Alunos',
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A2E),
+                        ),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => const InstrumentosPage(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.arrow_back),
+                      label: const Text('Instrumentos'),
+                    ),
+                  ],
                 ),
               ),
 
