@@ -3,16 +3,10 @@
     "configurations": [
         {
             "name": "Controle Instrumentos (F5)",
-            "request": "launch",
             "type": "dart",
-            "args": [
-                "-d",
-                "edge",
-                "--web-port",
-                "8080",
-                "--web-browser-flag",
-                "--no-sandbox"
-            ]
+            "request": "launch",
+            "deviceId": "chrome",
+            "program": "lib/main.dart"
         }
     ]
 }
