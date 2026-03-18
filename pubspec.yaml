@@ -1,6 +1,6 @@
 name: controle_instrumentos
 description: "A new Flutter project."
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -24,8 +24,8 @@ flutter:
   uses-material-design: true
 
   assets:
-   - assets/menu-icon.png
-   - assets/profile.png
+    - assets/menu-icon.png
+    - assets/profile.png
 
   fonts:
      - family: Poppins
