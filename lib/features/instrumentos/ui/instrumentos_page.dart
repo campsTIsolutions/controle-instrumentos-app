@@ -297,12 +297,76 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
         actions: [
           Builder(
             builder: (context) => IconButton(
+              
               icon: SizedBox(
                 width: 24,
                 height: 24,
                 child: Image.asset("assets/profile.png"),
               ),
-              onPressed: () => _abrirMenuPerfil(context),
+              onPressed: () async {
+                
+                final RenderBox button = context.findRenderObject() as RenderBox;
+                final RenderBox overlay =
+                    Overlay.of(context).context.findRenderObject() as RenderBox;
+
+                final RelativeRect position = RelativeRect.fromRect(
+                  Rect.fromPoints(
+                    button.localToGlobal(
+                      Offset(-15, button.size.height - 8), // desce mais 12 px
+                      ancestor: overlay,
+                    ),
+                    button.localToGlobal(
+                      button.size.bottomRight(Offset.zero) + const Offset(-15, -8),
+                      ancestor: overlay,
+                    ),
+                  ),
+                  Offset.zero & overlay.size,
+                );
+                final user = Supabase.instance.client.auth.currentUser;
+                final nomeUsuario = user?.userMetadata?['name'] ?? "Usuário";
+                final result = await showMenu<String>(
+                  context: context,
+                  position: position,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  items: [
+                    PopupMenuItem<String>(
+                      enabled: false,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.person_outline),
+                          const SizedBox(width: 10),
+                          Text(
+                            nomeUsuario,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const PopupMenuDivider(),
+
+                    const PopupMenuItem<String>(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout, color: Colors.red),
+                          SizedBox(width: 10),
+                          Text(
+                            'Sair',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+
+                if (result == 'logout') {
+                  // rota de logout você coloca depois
+                }
+              },
             ),
           ),
         ],
