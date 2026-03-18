@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:controle_instrumentos/features/instrumentos/ui/instrumentos_page.dart';
+import 'package:controle_instrumentos/features/login/login_page.dart';
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -8,7 +9,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(fontFamily: 'Poppins'),
-      home: const InstrumentosPage(),
+      home: const LoginPage(), // <- aqui
     );
   }
 }

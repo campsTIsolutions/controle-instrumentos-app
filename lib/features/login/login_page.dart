@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Importação do Supabase
 import 'register_page.dart'; // Certifique-se de criar este arquivo
+import 'package:controle_instrumentos/features/alunos/alunos_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -30,10 +31,11 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text.trim(),
       );
 
+      // DEPOIS (navega para a tela de Alunos)
       if (response.user != null && mounted) {
-        // Sucesso! Aqui você redirecionaria para a Home
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Login realizado com sucesso!")),
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AlunosPage()),
         );
       }
     } catch (e) {

@@ -1,6 +1,6 @@
 name: controle_instrumentos
 description: "A new Flutter project."
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -20,29 +20,20 @@ dev_dependencies:
   flutter_lints: ^3.0.0
 
 flutter:
-<<<<<<< HEAD
- 
   uses-material-design: true
 
   assets:
-   - assets/menu-icon.png
-   - assets/profile.png
+    - assets/menu-icon.png
+    - assets/profile.png
 
   fonts:
-     - family: Poppins
-       fonts:
-         - asset: fonts/Poppins-Bold.ttf
-           weight: 700
-         - asset: fonts/Poppins-Medium.ttf
-           weight: 500
-         - asset: fonts/Poppins-Regular.ttf
-           weight: 400
-         - asset: fonts/Poppins-SemiBold.ttf
-           weight: 600
-  # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
-=======
-  uses-material-design: true
-  # Note que a parte de 'assets' foi removida daqui, 
-  # já que você apagou a pasta e a imagem.
->>>>>>> 7e83cb0 (login page, tela de cadastro e conexão com o supabase bem sucedida)
+    - family: Poppins
+      fonts:
+        - asset: fonts/Poppins-Bold.ttf
+          weight: 700
+        - asset: fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: fonts/Poppins-Regular.ttf
+          weight: 400
+        - asset: fonts/Poppins-SemiBold.ttf
+          weight: 600
