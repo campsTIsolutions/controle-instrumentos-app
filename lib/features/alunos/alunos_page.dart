@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:controle_instrumentos/features/instrumentos/ui/instrumentos_page.dart';
+import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
 
 class AlunosPage extends StatefulWidget {
   const AlunosPage({super.key});
@@ -12,6 +12,7 @@ class AlunosPage extends StatefulWidget {
 class _AlunosPageState extends State<AlunosPage> {
   final _supabase = Supabase.instance.client;
   final _searchController = TextEditingController();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   List<Map<String, dynamic>> _alunos = [];
   List<Map<String, dynamic>> _alunosFiltrados = [];
@@ -39,7 +40,8 @@ class _AlunosPageState extends State<AlunosPage> {
         if (error.message.isNotEmpty) error.message,
         if (error.details != null && error.details.toString().isNotEmpty)
           error.details.toString(),
-        if (error.hint != null && error.hint!.isNotEmpty) 'Dica: ${error.hint!}',
+        if (error.hint != null && error.hint!.isNotEmpty)
+          'Dica: ${error.hint!}',
         if (error.code != null) 'Codigo: ${error.code}',
       ];
       return detalhes.join(' | ');
@@ -216,6 +218,8 @@ class _AlunosPageState extends State<AlunosPage> {
     final isTablet = screenWidth >= 600;
 
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: const AppDrawer(),
       backgroundColor: const Color(0xFFF2F3F5),
       body: SafeArea(
         // MODIFICAÇÃO 3: SafeArea garante que o conteúdo não fique atrás de
@@ -229,6 +233,18 @@ class _AlunosPageState extends State<AlunosPage> {
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
                 child: Row(
                   children: [
+                    IconButton(
+                      onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                      icon: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: Image.asset('assets/menu-icon.png'),
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
                         'Alunos',
@@ -238,17 +254,6 @@ class _AlunosPageState extends State<AlunosPage> {
                           color: Color(0xFF1A1A2E),
                         ),
                       ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => const InstrumentosPage(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.arrow_back),
-                      label: const Text('Instrumentos'),
                     ),
                   ],
                 ),
