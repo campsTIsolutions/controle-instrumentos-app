@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'features/login/login_page.dart';
 import 'features/instrumentos/ui/instrumentos_page.dart';
+import 'features/instrumentos/ui/instrumentos_page.dart';
 
 void main() async {
   // Garante a inicialização dos componentes do Flutter
@@ -35,7 +36,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: hasSession ? const InstrumentosPage() : const LoginPage(),
+      home: const LoginPage(),
     );
   }
 }

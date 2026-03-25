@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Importação do Supabase
-import 'package:controle_instrumentos/features/instrumentos/ui/instrumentos_page.dart';
-import 'register_page.dart'; // Certifique-se de criar este arquivo
+
+import '../instrumentos/ui/instrumentos_page.dart';
 import 'forgot_password_page.dart'; // ADICIONADO: Import da sua nova página
+import 'register_page.dart'; // Certifique-se de criar este arquivo
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -32,9 +33,8 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text.trim(),
       );
 
-      // DEPOIS (navega para a tela principal)
       if (response.user != null && mounted) {
-        // Sucesso: substitui a rota de login pela tela principal.
+        // Sucesso: substitui a rota de login pela tela de instrumentos.
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const InstrumentosPage()),
         );
@@ -59,11 +59,17 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.black,
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        color: Colors.white,
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment.center,
+            radius: 1.0,
+            colors: [Color(0xFF2D0066), Colors.black],
+          ),
+        ),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -118,7 +124,6 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 12),
                     TextButton(
                       onPressed: () {
-                        // ATUALIZADO: Agora abre a página de recuperação
                         Navigator.push(
                           context,
                           MaterialPageRoute(
