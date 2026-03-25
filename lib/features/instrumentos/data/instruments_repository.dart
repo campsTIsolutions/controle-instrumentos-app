@@ -7,7 +7,7 @@ class InstrumentsRepository {
     final data = await client
         .from('instrumentos')
         .select('*')
-        .order('created_at', ascending: false);
+        .order('id_instrumento', ascending: true);
 
     // supabase_flutter retorna List<dynamic>
     return (data as List).cast<Map<String, dynamic>>();

@@ -18,9 +18,7 @@ class AppDrawer extends StatelessWidget {
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 5),
-
             const Divider(height: 1, thickness: 2),
-
             ListTile(
               leading: const Icon(Icons.music_note),
               title: const Text('Instrumentos'),
@@ -32,13 +30,11 @@ class AppDrawer extends StatelessWidget {
                 );
               },
             ),
-
             ListTile(
               leading: const Icon(Icons.article),
               title: const Text('Chamada'),
               onTap: null,
             ),
-
             ListTile(
               leading: const Icon(Icons.person),
               title: const Text('Alunos'),

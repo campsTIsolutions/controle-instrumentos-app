@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+<<<<<<< HEAD
+=======
+import '../data/instruments_repository.dart';
+>>>>>>> 242608c (WIP: salvar progresso atual)
 import 'widgets/app_drawer.dart';
 import 'widgets/perfil_drawer.dart';
 import 'widgets/instrumento_card.dart';
@@ -16,12 +20,19 @@ class InstrumentosPage extends StatefulWidget {
 
 class _InstrumentosPageState extends State<InstrumentosPage> {
   final _supabase = Supabase.instance.client;
+<<<<<<< HEAD
+=======
+  final _repository = InstrumentsRepository();
+>>>>>>> 242608c (WIP: salvar progresso atual)
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _isLoading = true;
   List<Map<String, dynamic>> _instrumentos = [];
   String _search = '';
+<<<<<<< HEAD
   String? _erroCarregamento;
+=======
+>>>>>>> 242608c (WIP: salvar progresso atual)
 
   String _texto(Map<String, dynamic> item, List<String> chaves) {
     for (final chave in chaves) {
@@ -60,6 +71,7 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
 
   @override
   void initState() {
+    
     super.initState();
     _carregarInstrumentos();
   }
@@ -144,6 +156,7 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
   Future<void> _carregarInstrumentos() async {
     if (!mounted) return;
 
+<<<<<<< HEAD
     setState(() {
       _isLoading = true;
       _erroCarregamento = null;
@@ -156,13 +169,25 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
             'id_instrumento, numero_patrimonio, nome_instrumento, disponivel, propriedade_instrumento, leva_instrumento, observacoes, imagem_url',
           )
           .order('id_instrumento', ascending: true);
+=======
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await _repository.fetchInstrumentos();
+
+      if (!mounted) return;
+>>>>>>> 242608c (WIP: salvar progresso atual)
 
       if (!mounted) return;
 
       setState(() {
+<<<<<<< HEAD
         _instrumentos = List<Map<String, dynamic>>.from(
           (response as List).map((item) => Map<String, dynamic>.from(item)),
         );
+=======
+        _instrumentos = response;
+>>>>>>> 242608c (WIP: salvar progresso atual)
         _isLoading = false;
       });
     } catch (e, s) {
@@ -171,10 +196,14 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
 
       if (!mounted) return;
 
+<<<<<<< HEAD
       setState(() {
         _isLoading = false;
         _erroCarregamento = e.toString();
       });
+=======
+      setState(() => _isLoading = false);
+>>>>>>> 242608c (WIP: salvar progresso atual)
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -251,8 +280,14 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
   @override
   Widget build(BuildContext context) {
     final instrumentosFiltrados = _instrumentos.where((item) {
+<<<<<<< HEAD
       final nome = _texto(item, ['nome_instrumento']).toLowerCase();
       final patrimonio = _texto(item, ['numero_patrimonio']).toLowerCase();
+=======
+      final nome = _texto(item, ['nome_instrumento', 'nome']).toLowerCase();
+      final patrimonio =
+          _texto(item, ['numero_patrimonio', 'patrimonio']).toLowerCase();
+>>>>>>> 242608c (WIP: salvar progresso atual)
       final termo = _search.toLowerCase();
 
       return nome.contains(termo) || patrimonio.contains(termo);
@@ -403,6 +438,7 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
+<<<<<<< HEAD
                 : _erroCarregamento != null
                     ? Center(
                         child: Padding(
@@ -485,6 +521,70 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
                                   ),
                                 ],
                               ),
+=======
+                : instrumentosFiltrados.isEmpty
+                    ? const Center(
+                        child: Text('Nenhum instrumento cadastrado.'),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: instrumentosFiltrados.length,
+                        itemBuilder: (context, index) {
+                          final item = instrumentosFiltrados[index];
+
+                          final nome =
+                              _texto(item, ['nome_instrumento', 'nome']);
+                          final patrimonio = _texto(
+                            item,
+                            ['numero_patrimonio', 'patrimonio'],
+                          );
+                          final disponivel = _bool(
+                            item,
+                            ['disponivel', 'disponibilidade'],
+                          );
+                          final observacoes = _texto(
+                            item,
+                            ['observacoes', 'observacao'],
+                          );
+
+                          final status =
+                              disponivel ? 'Disponível' : 'Indisponível';
+
+                          return Column(
+                            children: [
+                              InstrumentoCard(
+                                nome: nome,
+                                tipo: patrimonio,
+                                aluno: status,
+                                onTap: () {
+                                  _abrirModalInstrumento(
+                                    nome: nome,
+                                    patrimonio: patrimonio,
+                                    status: status,
+                                    observacoes: observacoes,
+                                  );
+                                },
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  InstrumentoActionbuttom(
+                                    icone: Icons.edit,
+                                    cor: const Color(0xFF2563EB),
+                                    onTap: () =>
+                                        _abrirDialogInstrumento(instrumento: item),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  InstrumentoActionbuttom(
+                                    icone: Icons.delete,
+                                    cor: const Color(0xFFB91C1C),
+                                    onTap: () => _deletarInstrumento(
+                                      item['id_instrumento'],
+                                    ),
+                                  ),
+                                ],
+                              ),
+>>>>>>> 242608c (WIP: salvar progresso atual)
                               const SizedBox(height: 12),
                             ],
                           );
