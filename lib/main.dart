@@ -1,12 +1,15 @@
-import 'package:controle_instrumentos/features/chamada/tela_chamada.dart';
+import 'package:controle_instrumentos/features/chamada/tela_anual.dart';
 import 'package:controle_instrumentos/features/login/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 //import 'package:controle_instrumentos/features/chamada/ui/presenca_page.dart';
 
 void main() async {
   // Garante a inicialização dos componentes do Flutter
   WidgetsFlutterBinding.ensureInitialized();
+  
+
 
   // Inicializa a conexão real com o seu banco de dados Supabase
   await Supabase.initialize(
@@ -33,7 +36,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const CampsApp(),
+      home: const TelaAnual(),
     );
   }
 }
