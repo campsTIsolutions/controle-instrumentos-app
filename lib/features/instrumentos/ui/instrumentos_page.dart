@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../repository/instrumentos_repository.dart';
 import 'widgets/app_drawer.dart';
 import 'widgets/perfil_drawer.dart';
 import 'widgets/instrumento_card.dart';
+import 'widgets/instrumento_detalhe_page.dart';
 import 'widgets/instrumento_dialog.dart';
-import 'widgets/instrumento_actionbuttom.dart';
 
 class InstrumentosPage extends StatefulWidget {
   const InstrumentosPage({super.key});
@@ -15,19 +16,37 @@ class InstrumentosPage extends StatefulWidget {
 }
 
 class _InstrumentosPageState extends State<InstrumentosPage> {
+  final _repository = InstrumentosRepository();
   final _supabase = Supabase.instance.client;
+  final _searchController = TextEditingController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _isLoading = true;
   List<Map<String, dynamic>> _instrumentos = [];
-  String _search = '';
+  List<Map<String, dynamic>> _instrumentosFiltrados = [];
+  Map<int, String> _nomesAlunosPorId = {};
   String? _erroCarregamento;
+  bool _ordenarAlfabetico = false;
+  String? _filtroPropriedade;
+  String? _filtroStatus;
+
+  final _propriedades = const ['CAMPS', 'Terceiros'];
+  final _statusDisponibilidade = const ['Disponivel', 'Indisponivel'];
 
   String _texto(Map<String, dynamic> item, List<String> chaves) {
     for (final chave in chaves) {
       final valor = item[chave];
       if (valor != null) return valor.toString();
     }
+    return '';
+  }
+
+  String _nomeAluno(Map<String, dynamic> item) {
+    final alunoId = item['id_aluno'];
+    final id = alunoId is int ? alunoId : int.tryParse(alunoId?.toString() ?? '');
+    if (id == null) return '';
+    final nome = _nomesAlunosPorId[id];
+    if (nome != null) return nome;
     return '';
   }
 
@@ -64,80 +83,36 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
     _carregarInstrumentos();
   }
 
-  void _abrirModalInstrumento({
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _abrirDetalhesInstrumento({
+    required BuildContext context,
     required String nome,
     required String patrimonio,
     required String status,
+    required String alunoNome,
+    required String propriedade,
+    required bool levaInstrumento,
     required String observacoes,
+    required String imageUrl,
   }) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return FractionallySizedBox(
-          heightFactor: 0.58,
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 5,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                  Center(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.asset(
-                        'assets/instrumento.png',
-                        height: 140,
-                        width: 140,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    nome,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Patrimônio: $patrimonio',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Status: $status',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Observações: ${observacoes.isEmpty ? 'Sem observações' : observacoes}',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InstrumentoDetalhePage(
+          nome: nome,
+          patrimonio: patrimonio,
+          status: status,
+          alunoNome: alunoNome,
+          propriedade: propriedade,
+          levaInstrumento: levaInstrumento,
+          observacoes: observacoes,
+          imageUrl: imageUrl,
+        ),
+      ),
     );
   }
 
@@ -150,19 +125,28 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
     });
 
     try {
-      final response = await _supabase
-          .from('instrumentos')
-          .select(
-            'id_instrumento, numero_patrimonio, nome_instrumento, disponivel, propriedade_instrumento, leva_instrumento, observacoes, imagem_url',
-          )
-          .order('id_instrumento', ascending: true);
+      final response = await _repository.listarInstrumentos();
+      final alunosResponse = await _supabase
+          .from('alunos')
+          .select('id_aluno, nome_completo');
 
       if (!mounted) return;
 
+      final nomesAlunosPorId = <int, String>{};
+      for (final item in alunosResponse as List) {
+        final aluno = Map<String, dynamic>.from(item as Map);
+        final id = aluno['id_aluno'];
+        final nome = aluno['nome_completo'];
+        final idInt = id is int ? id : int.tryParse(id?.toString() ?? '');
+        if (idInt != null && nome != null) {
+          nomesAlunosPorId[idInt] = nome.toString();
+        }
+      }
+
       setState(() {
-        _instrumentos = List<Map<String, dynamic>>.from(
-          (response as List).map((item) => Map<String, dynamic>.from(item)),
-        );
+        _instrumentos = response;
+        _nomesAlunosPorId = nomesAlunosPorId;
+        _aplicarFiltros();
         _isLoading = false;
       });
     } catch (e, s) {
@@ -183,6 +167,42 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
         ),
       );
     }
+  }
+
+  void _aplicarFiltros() {
+    List<Map<String, dynamic>> resultado = List.from(_instrumentos);
+
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      resultado = resultado.where((item) {
+        final nome = _texto(item, ['nome_instrumento']).toLowerCase();
+        final patrimonio = _texto(item, ['numero_patrimonio']).toLowerCase();
+        return nome.contains(query) || patrimonio.contains(query);
+      }).toList();
+    }
+
+    if (_filtroPropriedade != null) {
+      resultado = resultado.where((item) {
+        return _texto(item, ['propriedade_instrumento']) == _filtroPropriedade;
+      }).toList();
+    }
+
+    if (_filtroStatus != null) {
+      final disponivel = _filtroStatus == 'Disponivel';
+      resultado = resultado
+          .where((item) => _bool(item, ['disponivel']) == disponivel)
+          .toList();
+    }
+
+    if (_ordenarAlfabetico) {
+      resultado.sort(
+        (a, b) => _texto(a, ['nome_instrumento']).compareTo(
+          _texto(b, ['nome_instrumento']),
+        ),
+      );
+    }
+
+    _instrumentosFiltrados = resultado;
   }
 
   Future<void> _deletarInstrumento(dynamic idRaw) async {
@@ -213,7 +233,7 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
     if (confirmar != true) return;
 
     try {
-      await _supabase.from('instrumentos').delete().eq('id_instrumento', id);
+      await _repository.eliminarInstrumento(id);
       await _carregarInstrumentos();
     } catch (e) {
       if (!mounted) return;
@@ -234,12 +254,12 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
         instrumento: instrumento,
         onSalvar: (dados) async {
           if (instrumento == null) {
-            await _supabase.from('instrumentos').insert(dados);
+            await _repository.criarInstrumento(dados);
           } else {
-            await _supabase
-                .from('instrumentos')
-                .update(dados)
-                .eq('id_instrumento', instrumento['id_instrumento']);
+            await _repository.atualizarInstrumento(
+              idInstrumento: instrumento['id_instrumento'],
+              dados: dados,
+            );
           }
 
           await _carregarInstrumentos();
@@ -250,14 +270,6 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
 
   @override
   Widget build(BuildContext context) {
-    final instrumentosFiltrados = _instrumentos.where((item) {
-      final nome = _texto(item, ['nome_instrumento']).toLowerCase();
-      final patrimonio = _texto(item, ['numero_patrimonio']).toLowerCase();
-      final termo = _search.toLowerCase();
-
-      return nome.contains(termo) || patrimonio.contains(termo);
-    }).toList();
-
     return Scaffold(
       key: _scaffoldKey,
       drawer: const AppDrawer(),
@@ -384,9 +396,8 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: TextField(
-              onChanged: (value) {
-                setState(() => _search = value);
-              },
+              controller: _searchController,
+              onChanged: (_) => setState(_aplicarFiltros),
               decoration: InputDecoration(
                 hintText: 'Pesquisar instrumento...',
                 prefixIcon: const Icon(Icons.search),
@@ -397,6 +408,90 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
                   borderSide: BorderSide.none,
                 ),
               ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: Checkbox(
+                          value: _ordenarAlfabetico,
+                          activeColor: const Color(0xFF2563EB),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          onChanged: (v) {
+                            setState(() {
+                              _ordenarAlfabetico = v ?? false;
+                              _aplicarFiltros();
+                            });
+                          },
+                        ),
+                      ),
+                      const Text(
+                        'A-Z',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF374151),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _FiltroDropdown(
+                  hint: 'Propriedade',
+                  valor: _filtroPropriedade,
+                  opcoes: _propriedades,
+                  onChanged: (v) {
+                    setState(() {
+                      _filtroPropriedade = v;
+                      _aplicarFiltros();
+                    });
+                  },
+                  onLimpar: () {
+                    setState(() {
+                      _filtroPropriedade = null;
+                      _aplicarFiltros();
+                    });
+                  },
+                ),
+                const SizedBox(width: 10),
+                _FiltroDropdown(
+                  hint: 'Status',
+                  valor: _filtroStatus,
+                  opcoes: _statusDisponibilidade,
+                  onChanged: (v) {
+                    setState(() {
+                      _filtroStatus = v;
+                      _aplicarFiltros();
+                    });
+                  },
+                  onLimpar: () {
+                    setState(() {
+                      _filtroStatus = null;
+                      _aplicarFiltros();
+                    });
+                  },
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 15),
@@ -429,69 +524,130 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
                           ),
                         ),
                       )
-                : instrumentosFiltrados.isEmpty
-                    ? const Center(
-                        child: Text('Nenhum instrumento cadastrado.'),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: instrumentosFiltrados.length,
-                        itemBuilder: (context, index) {
-                          final item = instrumentosFiltrados[index];
+                    : _instrumentosFiltrados.isEmpty
+                        ? const Center(
+                            child: Text('Nenhum instrumento encontrado.'),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(12),
+                            itemCount: _instrumentosFiltrados.length,
+                            itemBuilder: (context, index) {
+                              final item = _instrumentosFiltrados[index];
+                              final nome = _texto(item, ['nome_instrumento']);
+                              final patrimonio = _texto(
+                                item,
+                                ['numero_patrimonio'],
+                              );
+                              final disponivel = _bool(item, ['disponivel']);
+                              final observacoes = _texto(item, ['observacoes']);
+                              final propriedade = _texto(
+                                item,
+                                ['propriedade_instrumento'],
+                              );
+                              final alunoNome = _nomeAluno(item);
+                              final levaInstrumento = _bool(
+                                item,
+                                ['leva_instrumento'],
+                              );
+                              final imageUrl = _texto(item, ['imagem_url']);
 
-                          final nome = _texto(item, ['nome_instrumento']);
-                          final patrimonio = _texto(
-                            item,
-                            ['numero_patrimonio'],
-                          );
-                          final disponivel = _bool(item, ['disponivel']);
-                          final observacoes = _texto(item, ['observacoes']);
+                              final status =
+                                  disponivel ? 'Disponível' : 'Indisponível';
 
-                          final status =
-                              disponivel ? 'Disponível' : 'Indisponível';
-
-                          return Column(
-                            children: [
-                              InstrumentoCard(
+                              return InstrumentoCard(
                                 nome: nome,
-                                tipo: patrimonio,
-                                aluno: status,
+                                patrimonio: patrimonio,
+                                status: status,
+                                alunoNome: alunoNome,
+                                propriedade: propriedade,
+                                levaInstrumento: levaInstrumento,
+                                observacoes: observacoes,
+                                imageUrl: imageUrl,
                                 onTap: () {
-                                  _abrirModalInstrumento(
+                                  _abrirDetalhesInstrumento(
+                                    context: context,
                                     nome: nome,
                                     patrimonio: patrimonio,
                                     status: status,
+                                    alunoNome: alunoNome,
+                                    propriedade: propriedade,
+                                    levaInstrumento: levaInstrumento,
                                     observacoes: observacoes,
+                                    imageUrl: imageUrl,
                                   );
                                 },
-                              ),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  InstrumentoActionbuttom(
-                                    icone: Icons.edit,
-                                    cor: const Color(0xFF2563EB),
-                                    onTap: () => _abrirDialogInstrumento(
-                                      instrumento: item,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  InstrumentoActionbuttom(
-                                    icone: Icons.delete,
-                                    cor: const Color(0xFFB91C1C),
-                                    onTap: () => _deletarInstrumento(
-                                      item['id_instrumento'],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                            ],
-                          );
-                        },
-                      ),
+                                onEdit: () => _abrirDialogInstrumento(
+                                  instrumento: item,
+                                ),
+                                onDelete: () => _deletarInstrumento(
+                                  item['id_instrumento'],
+                                ),
+                              );
+                            },
+                          ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FiltroDropdown extends StatelessWidget {
+  const _FiltroDropdown({
+    required this.hint,
+    required this.valor,
+    required this.opcoes,
+    required this.onChanged,
+    required this.onLimpar,
+  });
+
+  final String hint;
+  final String? valor;
+  final List<String> opcoes;
+  final ValueChanged<String?> onChanged;
+  final VoidCallback onLimpar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: valor,
+          hint: Text(
+            hint,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+          borderRadius: BorderRadius.circular(10),
+          items: [
+            ...opcoes.map(
+              (opcao) => DropdownMenuItem<String>(
+                value: opcao,
+                child: Text(opcao),
+              ),
+            ),
+            if (valor != null)
+              const DropdownMenuItem<String>(
+                value: '__limpar__',
+                child: Text('Limpar filtro'),
+              ),
+          ],
+          onChanged: (value) {
+            if (value == '__limpar__') {
+              onLimpar();
+              return;
+            }
+            onChanged(value);
+          },
+        ),
       ),
     );
   }

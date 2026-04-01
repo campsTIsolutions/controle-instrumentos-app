@@ -1,4 +1,7 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'instrumento_text.dart';
 
 class InstrumentoDialog extends StatefulWidget {
@@ -16,17 +19,24 @@ class InstrumentoDialog extends StatefulWidget {
 }
 
 class _InstrumentoDialogState extends State<InstrumentoDialog> {
+  static const _propriedades = ['CAMPS', 'Terceiros'];
+  final _supabase = Supabase.instance.client;
+
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _nomeCtrl;
   late final TextEditingController _patrimonioCtrl;
   late final TextEditingController _observacoesCtrl;
-  late final TextEditingController _propriedadeCtrl;
-  late final TextEditingController _imagemUrlCtrl;
 
   bool _levaInstrumento = false;
   bool _disponivel = true;
   bool _salvando = false;
+  bool _carregandoAlunos = true;
+  String? _propriedadeSelecionada;
+  String? _imagemPath;
+  String? _imagemNome;
+  int? _alunoSelecionadoId;
+  List<Map<String, dynamic>> _alunos = [];
 
   @override
   void initState() {
@@ -36,75 +46,127 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
     _nomeCtrl = TextEditingController(
       text: i?['nome_instrumento']?.toString() ?? '',
     );
-
     _patrimonioCtrl = TextEditingController(
       text: i?['numero_patrimonio']?.toString() ?? '',
     );
-
     _observacoesCtrl = TextEditingController(
       text: i?['observacoes']?.toString() ?? '',
     );
 
     _disponivel = i?['disponivel'] == null ? true : i!['disponivel'] == true;
-    _propriedadeCtrl = TextEditingController(
-    text: i?['propriedade_instrumento']?.toString() ?? '',
-    );
-
-    _imagemUrlCtrl = TextEditingController(
-      text: i?['imagem_url']?.toString() ?? '',
-    );
-
     _levaInstrumento = i?['leva_instrumento'] == true;
+
+    final propriedadeInicial = i?['propriedade_instrumento']?.toString();
+    if (_propriedades.contains(propriedadeInicial)) {
+      _propriedadeSelecionada = propriedadeInicial;
+    }
+
+    final alunoId = i?['id_aluno'];
+    if (alunoId is int) {
+      _alunoSelecionadoId = alunoId;
+    } else if (alunoId != null) {
+      _alunoSelecionadoId = int.tryParse(alunoId.toString());
+    }
+
+    _imagemPath = i?['imagem_url']?.toString();
+    if (_imagemPath != null && _imagemPath!.isNotEmpty) {
+      _imagemNome = _imagemPath!.split(RegExp(r'[\\/]')).last;
+    }
+
+    _carregarAlunos();
   }
 
   @override
   void dispose() {
-    _propriedadeCtrl.dispose();
-    _imagemUrlCtrl.dispose();
     _nomeCtrl.dispose();
     _patrimonioCtrl.dispose();
     _observacoesCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _salvar() async {
-  if (!_formKey.currentState!.validate()) return;
+  Future<void> _selecionarArquivo() async {
+    if (_salvando) return;
 
-  setState(() => _salvando = true);
+    final resultado = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+    );
 
-  try {
-    final dados = <String, dynamic>{
-      'numero_patrimonio': _patrimonioCtrl.text.trim(),
-      'nome_instrumento': _nomeCtrl.text.trim(),
-      'disponivel': _disponivel,
-      'propriedade_instrumento': _propriedadeCtrl.text.trim().isEmpty
-          ? null
-          : _propriedadeCtrl.text.trim(),
-      'leva_instrumento': _levaInstrumento,
-      'observacoes': _observacoesCtrl.text.trim().isEmpty
-          ? null
-          : _observacoesCtrl.text.trim(),
-      'imagem_url': _imagemUrlCtrl.text.trim().isEmpty
-          ? null
-          : _imagemUrlCtrl.text.trim(),
-    };
+    if (resultado == null) return;
 
-    await widget.onSalvar(dados);
+    final arquivo = resultado.files.single;
+    setState(() {
+      _imagemPath = arquivo.path;
+      _imagemNome = arquivo.name;
+    });
+  }
 
-    if (mounted) Navigator.pop(context);
-  } catch (e) {
-    if (mounted) {
+  Future<void> _carregarAlunos() async {
+    try {
+      final response = await _supabase
+          .from('alunos')
+          .select('id_aluno, nome_completo')
+          .order('nome_completo', ascending: true);
+
+      if (!mounted) return;
+
+      final alunos = List<Map<String, dynamic>>.from(
+        (response as List).map((item) => Map<String, dynamic>.from(item)),
+      );
+
+      setState(() {
+        _alunos = alunos;
+        _carregandoAlunos = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _carregandoAlunos = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro ao salvar: $e'),
+          content: Text('Erro ao carregar alunos: $e'),
           backgroundColor: Colors.red,
         ),
       );
     }
-  } finally {
-    if (mounted) setState(() => _salvando = false);
   }
-}
+
+  Future<void> _salvar() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _salvando = true);
+
+    try {
+      final dados = <String, dynamic>{
+        'numero_patrimonio': _patrimonioCtrl.text.trim(),
+        'nome_instrumento': _nomeCtrl.text.trim(),
+        'propriedade_instrumento': _propriedadeSelecionada,
+        'id_aluno': _alunoSelecionadoId,
+        'leva_instrumento': _levaInstrumento,
+        'observacoes': _observacoesCtrl.text.trim().isEmpty
+            ? null
+            : _observacoesCtrl.text.trim(),
+        'imagem_url': (_imagemPath == null || _imagemPath!.trim().isEmpty)
+            ? null
+            : _imagemPath!.trim(),
+        'disponivel': _disponivel,
+      };
+
+      await widget.onSalvar(dados);
+
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao salvar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _salvando = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -151,38 +213,44 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
               ),
               const SizedBox(height: 12),
               InstrumentoText(
-                label: 'Número do Patrimônio',
+                label: 'Numero do Patrimonio',
                 controller: _patrimonioCtrl,
                 validator: (v) => v == null || v.trim().isEmpty
-                    ? 'Informe o patrimônio'
+                    ? 'Informe o patrimonio'
                     : null,
               ),
               const SizedBox(height: 12),
               InstrumentoText(
-                label: 'Observações',
+                label: 'Observacoes',
                 controller: _observacoesCtrl,
               ),
               const SizedBox(height: 12),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text(
-                  'Disponível',
-                  style: TextStyle(color: Colors.white),
-                ),
-                value: _disponivel,
+              _CampoDropdown(
+                label: 'Propriedade do Instrumento',
+                hint: 'Selecionar propriedade',
+                valor: _propriedadeSelecionada,
+                opcoes: _propriedades,
+                validator: (value) =>
+                    value == null ? 'Selecione a propriedade' : null,
                 onChanged: _salvando
                     ? null
                     : (value) {
-                        setState(() => _disponivel = value);
+                        setState(() => _propriedadeSelecionada = value);
                       },
-                activeColor: const Color(0xFF2563EB),
-              ),
-              InstrumentoText(
-                label: 'Propriedade do Instrumento',
-                controller: _propriedadeCtrl,
               ),
               const SizedBox(height: 12),
-
+              _CampoAlunoDropdown(
+                label: 'Aluno Vinculado',
+                valor: _alunoSelecionadoId,
+                carregando: _carregandoAlunos,
+                opcoes: _alunos,
+                onChanged: _salvando
+                    ? null
+                    : (value) {
+                        setState(() => _alunoSelecionadoId = value);
+                      },
+              ),
+              const SizedBox(height: 12),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text(
@@ -198,12 +266,83 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
                 activeColor: const Color(0xFF2563EB),
               ),
               const SizedBox(height: 12),
-
-              InstrumentoText(
-                label: 'Imagem URL',
-                controller: _imagemUrlCtrl,
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Imagem do Instrumento',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _imagemNome ?? 'Nenhum arquivo selecionado',
+                      style: const TextStyle(color: Colors.black87),
+                    ),
+                    if (_imagemPath != null && _imagemPath!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _imagemPath!,
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _salvando ? null : _selecionarArquivo,
+                          icon: const Icon(Icons.folder_open),
+                          label: const Text('Escolher arquivo'),
+                        ),
+                        if (_imagemPath != null && _imagemPath!.isNotEmpty)
+                          OutlinedButton(
+                            onPressed: _salvando
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _imagemPath = null;
+                                      _imagemNome = null;
+                                    });
+                                  },
+                            child: const Text('Remover'),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Disponivel',
+                  style: TextStyle(color: Colors.white),
+                ),
+                value: _disponivel,
+                onChanged: _salvando
+                    ? null
+                    : (value) {
+                        setState(() => _disponivel = value);
+                      },
+                activeColor: const Color(0xFF2563EB),
+              ),
               const SizedBox(height: 20),
               Row(
                 children: [
@@ -259,6 +398,156 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CampoDropdown extends StatelessWidget {
+  const _CampoDropdown({
+    required this.label,
+    required this.hint,
+    required this.valor,
+    required this.opcoes,
+    required this.onChanged,
+    this.validator,
+  });
+
+  final String label;
+  final String hint;
+  final String? valor;
+  final List<String> opcoes;
+  final void Function(String?)? onChanged;
+  final String? Function(String?)? validator;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        DropdownButtonFormField<String>(
+          initialValue: valor,
+          hint: Text(hint, style: const TextStyle(color: Colors.black38)),
+          validator: validator,
+          onChanged: onChanged,
+          style: const TextStyle(color: Colors.black87, fontSize: 14),
+          dropdownColor: Colors.white,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+            ),
+          ),
+          items: opcoes
+              .map(
+                (opcao) => DropdownMenuItem<String>(
+                  value: opcao,
+                  child: Text(
+                    opcao,
+                    style: const TextStyle(color: Colors.black87),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _CampoAlunoDropdown extends StatelessWidget {
+  const _CampoAlunoDropdown({
+    required this.label,
+    required this.valor,
+    required this.carregando,
+    required this.opcoes,
+    required this.onChanged,
+  });
+
+  final String label;
+  final int? valor;
+  final bool carregando;
+  final List<Map<String, dynamic>> opcoes;
+  final void Function(int?)? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        DropdownButtonFormField<int?>(
+          initialValue: valor,
+          onChanged: carregando ? null : onChanged,
+          hint: Text(
+            carregando ? 'Carregando alunos...' : 'Selecionar aluno',
+            style: const TextStyle(color: Colors.black38),
+          ),
+          style: const TextStyle(color: Colors.black87, fontSize: 14),
+          dropdownColor: Colors.white,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+            ),
+          ),
+          items: [
+            const DropdownMenuItem<int?>(
+              value: null,
+              child: Text(
+                'Sem aluno vinculado',
+                style: TextStyle(color: Colors.black87),
+              ),
+            ),
+            ...opcoes.map(
+              (aluno) => DropdownMenuItem<int?>(
+                value: aluno['id_aluno'] as int,
+                child: Text(
+                  aluno['nome_completo']?.toString() ?? '',
+                  style: const TextStyle(color: Colors.black87),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
