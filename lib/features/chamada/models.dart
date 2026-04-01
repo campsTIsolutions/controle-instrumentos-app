@@ -2,8 +2,6 @@
 // Entidades, enums e extensões — sem dependência de Flutter/UI
 
 import 'package:flutter/material.dart';
-//'package:flutter/material.dart';
-
 
 // ─── Enum de status ───────────────────────────────────────────────────────────
 
@@ -38,7 +36,6 @@ extension AttendanceStatusExt on AttendanceStatus {
 
   Color get textColor => Colors.white;
 
-  /// Cicla para o próximo status ao tocar na grade
   AttendanceStatus get next {
     switch (this) {
       case AttendanceStatus.none:
@@ -56,28 +53,53 @@ extension AttendanceStatusExt on AttendanceStatus {
 // ─── Modelo do aluno ──────────────────────────────────────────────────────────
 
 class StudentRecord {
+  final int idAluno; // PK do Supabase
   final String name;
 
   /// data → lista de status (um por aula/turma no mesmo dia)
   final Map<DateTime, List<AttendanceStatus>> attendance;
 
-  /// data → nome do arquivo de atestado anexado
+  /// data → URL/nome do comprovante de atestado
   final Map<DateTime, String?> atestadoNome;
 
   StudentRecord({
+    required this.idAluno,
     required this.name,
     required this.attendance,
     Map<DateTime, String?>? atestadoNome,
   }) : atestadoNome = atestadoNome ?? {};
 }
 
-// ─── Dados mockados por mês ───────────────────────────────────────────────────
-// Substitua por query ao Supabase quando integrar o backend.
+// ─── Modelo de aula (registro da tabela `aulas`) ──────────────────────────────
 
-/// Retorna as datas de aula já cadastradas para um determinado mês/ano.
-/// [mes] é 1-indexado (1 = janeiro … 12 = dezembro).
+class AulaRecord {
+  final String id; // UUID
+  final DateTime data;
+
+  const AulaRecord({required this.id, required this.data});
+}
+
+// ─── Modelo de chamada (registro da tabela `chamadas`) ────────────────────────
+
+class ChamadaRecord {
+  final String id;
+  final String aulaId;
+  final int idAluno;
+  final AttendanceStatus status;
+  final String? comprovanteUrl;
+
+  const ChamadaRecord({
+    required this.id,
+    required this.aulaId,
+    required this.idAluno,
+    required this.status,
+    this.comprovanteUrl,
+  });
+}
+
+// ─── Dados mockados (usados apenas para desenvolvimento sem Supabase) ─────────
+
 List<DateTime> buildMockDatesForMonth(int ano, int mes) {
-  // Meses com dados de exemplo
   final Map<int, List<int>> diasPorMes = {
     1: [4, 11, 18, 25],
     2: [1, 8, 15],
@@ -89,23 +111,24 @@ List<DateTime> buildMockDatesForMonth(int ano, int mes) {
   return dias.map((d) => DateTime(ano, mes, d)).toList();
 }
 
-/// Retorna a lista de alunos com presença preenchida para as [dates] fornecidas.
 List<StudentRecord> buildMockStudents(List<DateTime> dates) {
   if (dates.isEmpty) {
     return [
-      StudentRecord(name: 'João Silva', attendance: {}),
-      StudentRecord(name: 'Maria Oliveira', attendance: {}),
-      StudentRecord(name: 'Pedro Santos', attendance: {}),
-      StudentRecord(name: 'Ana Costa', attendance: {}),
+      StudentRecord(idAluno: 1, name: 'João Silva', attendance: {}),
+      StudentRecord(idAluno: 2, name: 'Maria Oliveira', attendance: {}),
+      StudentRecord(idAluno: 3, name: 'Pedro Santos', attendance: {}),
+      StudentRecord(idAluno: 4, name: 'Ana Costa', attendance: {}),
     ];
   }
 
   return [
     StudentRecord(
+      idAluno: 1,
       name: 'João Silva',
       attendance: {for (final d in dates) d: [AttendanceStatus.presente]},
     ),
     StudentRecord(
+      idAluno: 2,
       name: 'Maria Oliveira',
       attendance: {
         for (int i = 0; i < dates.length; i++)
@@ -118,6 +141,7 @@ List<StudentRecord> buildMockStudents(List<DateTime> dates) {
       },
     ),
     StudentRecord(
+      idAluno: 3,
       name: 'Pedro Santos',
       attendance: {
         for (final d in dates)
@@ -125,6 +149,7 @@ List<StudentRecord> buildMockStudents(List<DateTime> dates) {
       },
     ),
     StudentRecord(
+      idAluno: 4,
       name: 'Ana Costa',
       attendance: {
         for (int i = 0; i < dates.length; i++)

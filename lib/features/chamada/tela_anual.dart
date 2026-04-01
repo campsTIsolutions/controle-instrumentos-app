@@ -1,9 +1,11 @@
 // lib/features/chamada/tela_anual.dart
 // Tela inicial: grade anual com 12 cards de mês.
-// Ao tocar em um mês, navega para TelaMes.
+// • Dropdown de seleção de ano (2026–2040)
+// • Contagem dinâmica de aulas por mês buscada no Supabase
+// • Ao tocar em um mês, navega para TelaMes
 
 import 'package:flutter/material.dart';
-import 'models.dart';
+import 'supabase_service.dart';
 import 'tela_mes.dart';
 
 class TelaAnual extends StatefulWidget {
@@ -14,7 +16,15 @@ class TelaAnual extends StatefulWidget {
 }
 
 class _TelaAnualState extends State<TelaAnual> {
-  final int _ano = DateTime.now().year;
+  // ── Intervalo de anos disponíveis no dropdown ─────────────────────────────
+  static const int _anoMin = 2026;
+  static const int _anoMax = 2040;
+
+  late int _anoSelecionado;
+
+  /// aulasPorMes[mes] = quantidade de aulas naquele mês (1-indexed)
+  final Map<int, int> _aulasPorMes = {};
+  bool _carregando = false;
 
   static const List<String> _nomesMeses = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril',
@@ -28,18 +38,56 @@ class _TelaAnualState extends State<TelaAnual> {
     'Set', 'Out', 'Nov', 'Dez',
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    // Inicia no ano atual, limitado ao intervalo do dropdown
+    final agora = DateTime.now().year;
+    _anoSelecionado = agora.clamp(_anoMin, _anoMax);
+    _carregarAulasPorAno(_anoSelecionado);
+  }
+
+  // ── Carrega a contagem de aulas de todos os meses do ano ──────────────────
+  Future<void> _carregarAulasPorAno(int ano) async {
+    setState(() => _carregando = true);
+    try {
+      final Map<int, int> contagem = {};
+      // Busca todos os 12 meses em paralelo
+      final futures = List.generate(
+        12,
+        (i) => SupabaseService.fetchAulas(ano: ano, mes: i + 1),
+      );
+      final resultados = await Future.wait(futures);
+      for (int i = 0; i < 12; i++) {
+        contagem[i + 1] = resultados[i].length;
+      }
+      if (mounted) {
+        setState(() {
+          _aulasPorMes
+            ..clear()
+            ..addAll(contagem);
+          _carregando = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _carregando = false);
+    }
+  }
+
   // ── Navegar para o mês selecionado ────────────────────────────────────────
-  void _abrirMes(int mes) {
-    Navigator.push(
+  Future<void> _abrirMes(int mes) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => TelaMes(
-          ano: _ano,
+          ano: _anoSelecionado,
           mes: mes,
           nomesMes: _nomesMeses[mes - 1],
         ),
       ),
     );
+    // Recarrega contagem ao voltar (podem ter aulas adicionadas/removidas)
+    _carregarAulasPorAno(_anoSelecionado);
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -48,7 +96,7 @@ class _TelaAnualState extends State<TelaAnual> {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: _buildAppBar(),
-      body: _buildGrid(),
+      body: _buildBody(),
     );
   }
 
@@ -70,10 +118,58 @@ class _TelaAnualState extends State<TelaAnual> {
           letterSpacing: 1.2,
         ),
       ),
+      actions: [
+        // ── Dropdown de ano ────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: _buildDropdownAno(),
+        ),
+      ],
     );
   }
 
-  Widget _buildGrid() {
+  /// Dropdown compacto para selecionar o ano
+  Widget _buildDropdownAno() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1976D2).withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+            color: const Color(0xFF1976D2).withOpacity(0.35), width: 0.8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: _anoSelecionado,
+          isDense: true,
+          icon: const Icon(Icons.keyboard_arrow_down,
+              size: 16, color: Color(0xFF1976D2)),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1976D2),
+          ),
+          items: List.generate(
+            _anoMax - _anoMin + 1,
+            (i) {
+              final ano = _anoMin + i;
+              return DropdownMenuItem(value: ano, child: Text('$ano'));
+            },
+          ),
+          onChanged: (novoAno) {
+            if (novoAno == null || novoAno == _anoSelecionado) return;
+            setState(() {
+              _anoSelecionado = novoAno;
+              _aulasPorMes.clear();
+            });
+            _carregarAulasPorAno(novoAno);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -81,14 +177,29 @@ class _TelaAnualState extends State<TelaAnual> {
         children: [
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 12),
-            child: Text(
-              '$_ano',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey.shade600,
-                letterSpacing: 0.4,
-              ),
+            child: Row(
+              children: [
+                Text(
+                  '$_anoSelecionado',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                if (_carregando) ...[
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           GridView.builder(
@@ -102,13 +213,13 @@ class _TelaAnualState extends State<TelaAnual> {
             ),
             itemCount: 12,
             itemBuilder: (context, index) {
-              final mes = index + 1; // 1-indexado
-              final datas = buildMockDatesForMonth(_ano, mes);
-              final temDados = datas.isNotEmpty;
+              final mes = index + 1;
+              final numAulas = _aulasPorMes[mes] ?? 0;
+              final temDados = numAulas > 0;
 
               return _MesCard(
                 abrev: _abrevMeses[index],
-                numAulas: datas.length,
+                numAulas: numAulas,
                 temDados: temDados,
                 onTap: () => _abrirMes(mes),
               );
@@ -118,7 +229,8 @@ class _TelaAnualState extends State<TelaAnual> {
           Center(
             child: Text(
               'Toque em um mês para abrir a chamada',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+              style:
+                  TextStyle(fontSize: 11, color: Colors.grey.shade400),
             ),
           ),
           const SizedBox(height: 20),
@@ -180,14 +292,15 @@ class _MesCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              numAulas == 0 ? '—' : '$numAulas aula${numAulas > 1 ? 's' : ''}',
+              numAulas == 0
+                  ? '—'
+                  : '$numAulas aula${numAulas > 1 ? 's' : ''}',
               style: TextStyle(
                 fontSize: 10,
                 color: Colors.grey.shade500,
               ),
             ),
             const SizedBox(height: 6),
-            // Indicador de dados
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               width: 6,
