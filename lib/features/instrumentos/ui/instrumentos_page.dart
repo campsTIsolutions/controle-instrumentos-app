@@ -330,8 +330,50 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
                   Offset.zero & overlay.size,
                 );
 
-                final user = Supabase.instance.client.auth.currentUser;
-                final nomeUsuario = user?.userMetadata?['name'] ?? 'Usuário';
+                final user =
+                    _supabase.auth.currentUser ?? _supabase.auth.currentSession?.user;
+                final userEmail = user?.email?.trim();
+                final emailLogin = userEmail?.split('@').first.trim();
+                String nomeUsuario =
+                    user?.userMetadata?['name']?.toString().trim() ?? '';
+
+                if (userEmail != null && userEmail.isNotEmpty) {
+                  try {
+                    final usuarioPorEmail = await _supabase
+                        .from('usuarios')
+                        .select('nome_usuario')
+                        .eq('login', userEmail)
+                        .maybeSingle();
+
+                    final nomeBancoEmail = usuarioPorEmail?['nome_usuario']
+                        ?.toString()
+                        .trim();
+
+                    if (nomeBancoEmail != null && nomeBancoEmail.isNotEmpty) {
+                      nomeUsuario = nomeBancoEmail;
+                    } else if (emailLogin != null && emailLogin.isNotEmpty) {
+                      final usuarioPorLogin = await _supabase
+                          .from('usuarios')
+                          .select('nome_usuario')
+                          .eq('login', emailLogin)
+                          .maybeSingle();
+
+                      final nomeBancoLogin = usuarioPorLogin?['nome_usuario']
+                          ?.toString()
+                          .trim();
+
+                      if (nomeBancoLogin != null && nomeBancoLogin.isNotEmpty) {
+                        nomeUsuario = nomeBancoLogin;
+                      }
+                    }
+                  } catch (_) {
+                    // Se falhar a consulta, mantem fallback abaixo.
+                  }
+                }
+
+                if (nomeUsuario.isEmpty) {
+                  nomeUsuario = emailLogin ?? userEmail ?? 'Usuario';
+                }
 
                 final result = await showMenu<String>(
                   context: context,
@@ -347,7 +389,7 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
                           const Icon(Icons.person_outline),
                           const SizedBox(width: 10),
                           Text(
-                            nomeUsuario.toString(),
+                            nomeUsuario,
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ],
