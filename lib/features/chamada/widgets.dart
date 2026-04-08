@@ -118,11 +118,11 @@ class AttendanceLegend extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _LegendItem(color: AttendanceStatus.presente.backgroundColor, label: 'P (Presente)'),
+          _LegendItem(color: AttendanceStatus.P.backgroundColor, label: 'P (P)'),
           const SizedBox(width: 20),
-          _LegendItem(color: AttendanceStatus.atestado.backgroundColor, label: 'A (Atestado)'),
+          _LegendItem(color: AttendanceStatus.A.backgroundColor, label: 'A (A)'),
           const SizedBox(width: 20),
-          _LegendItem(color: AttendanceStatus.falta.backgroundColor,    label: 'F (Falta)'),
+          _LegendItem(color: AttendanceStatus.F.backgroundColor,    label: 'F (F)'),
         ],
       ),
     );

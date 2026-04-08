@@ -5,16 +5,16 @@ import 'package:flutter/material.dart';
 
 // ─── Enum de status ───────────────────────────────────────────────────────────
 
-enum AttendanceStatus { presente, atestado, falta, none }
+enum AttendanceStatus { P, A, F, none }
 
 extension AttendanceStatusExt on AttendanceStatus {
   String get label {
     switch (this) {
-      case AttendanceStatus.presente:
+      case AttendanceStatus.P:
         return 'P';
-      case AttendanceStatus.atestado:
+      case AttendanceStatus.A:
         return 'A';
-      case AttendanceStatus.falta:
+      case AttendanceStatus.F:
         return 'F';
       case AttendanceStatus.none:
         return '—';
@@ -23,11 +23,11 @@ extension AttendanceStatusExt on AttendanceStatus {
 
   Color get backgroundColor {
     switch (this) {
-      case AttendanceStatus.presente:
+      case AttendanceStatus.P:
         return const Color(0xFF4CAF50);
-      case AttendanceStatus.atestado:
+      case AttendanceStatus.A:
         return const Color(0xFFFFC107);
-      case AttendanceStatus.falta:
+      case AttendanceStatus.F:
         return const Color(0xFFE53935);
       case AttendanceStatus.none:
         return Colors.grey.shade300;
@@ -39,12 +39,12 @@ extension AttendanceStatusExt on AttendanceStatus {
   AttendanceStatus get next {
     switch (this) {
       case AttendanceStatus.none:
-        return AttendanceStatus.presente;
-      case AttendanceStatus.presente:
-        return AttendanceStatus.atestado;
-      case AttendanceStatus.atestado:
-        return AttendanceStatus.falta;
-      case AttendanceStatus.falta:
+        return AttendanceStatus.P;
+      case AttendanceStatus.P:
+        return AttendanceStatus.A;
+      case AttendanceStatus.A:
+        return AttendanceStatus.F;
+      case AttendanceStatus.F:
         return AttendanceStatus.none;
     }
   }
@@ -125,7 +125,7 @@ List<StudentRecord> buildMockStudents(List<DateTime> dates) {
     StudentRecord(
       idAluno: 1,
       name: 'João Silva',
-      attendance: {for (final d in dates) d: [AttendanceStatus.presente]},
+      attendance: {for (final d in dates) d: [AttendanceStatus.P]},
     ),
     StudentRecord(
       idAluno: 2,
@@ -134,9 +134,9 @@ List<StudentRecord> buildMockStudents(List<DateTime> dates) {
         for (int i = 0; i < dates.length; i++)
           dates[i]: [
             i == dates.length - 1
-                ? AttendanceStatus.atestado
-                : AttendanceStatus.presente,
-            AttendanceStatus.presente,
+                ? AttendanceStatus.A
+                : AttendanceStatus.P,
+            AttendanceStatus.P,
           ],
       },
     ),
@@ -145,7 +145,7 @@ List<StudentRecord> buildMockStudents(List<DateTime> dates) {
       name: 'Pedro Santos',
       attendance: {
         for (final d in dates)
-          d: [AttendanceStatus.presente, AttendanceStatus.presente],
+          d: [AttendanceStatus.P, AttendanceStatus.P],
       },
     ),
     StudentRecord(
@@ -154,8 +154,8 @@ List<StudentRecord> buildMockStudents(List<DateTime> dates) {
       attendance: {
         for (int i = 0; i < dates.length; i++)
           dates[i]: [
-            i >= 2 ? AttendanceStatus.falta : AttendanceStatus.presente,
-            i >= 2 ? AttendanceStatus.falta : AttendanceStatus.presente,
+            i >= 2 ? AttendanceStatus.F : AttendanceStatus.P,
+            i >= 2 ? AttendanceStatus.F : AttendanceStatus.P,
           ],
       },
     ),

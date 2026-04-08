@@ -7,9 +7,13 @@ import 'models.dart';
 class SupabaseService {
   static final _db = Supabase.instance.client;
 
+  // ─── HELPER DE DATA ───────────────────────────────────────────────────────
+
+  /// Normaliza qualquer DateTime para meia-noite LOCAL, sem fuso.
+  static DateTime _soData(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+
   // ─── ALUNOS ───────────────────────────────────────────────────────────────
 
-  /// Busca todos os alunos da tabela `alunos`
   static Future<List<StudentRecord>> fetchAlunos() async {
     final data = await _db
         .from('alunos')
@@ -25,7 +29,6 @@ class SupabaseService {
         .toList();
   }
 
-  /// Insere um novo aluno na tabela `alunos`
   static Future<StudentRecord> inserirAluno({
     required String nomeCompleto,
     String? setor,
@@ -50,21 +53,18 @@ class SupabaseService {
     );
   }
 
-  /// Remove um aluno da tabela `alunos`
   static Future<void> deletarAluno(int idAluno) async {
     await _db.from('alunos').delete().eq('id_aluno', idAluno);
   }
 
   // ─── AULAS ────────────────────────────────────────────────────────────────
 
-  /// Busca todas as aulas de um mês/ano filtrando por intervalo de data
   static Future<List<AulaRecord>> fetchAulas({
     required int ano,
     required int mes,
   }) async {
     final inicio = DateTime(ano, mes, 1).toIso8601String().split('T').first;
-    final fim =
-        DateTime(ano, mes + 1, 0).toIso8601String().split('T').first;
+    final fim = DateTime(ano, mes + 1, 0).toIso8601String().split('T').first;
 
     final data = await _db
         .from('aulas')
@@ -76,41 +76,31 @@ class SupabaseService {
     return (data as List)
         .map((row) => AulaRecord(
               id: row['id'] as String,
-              data: DateTime.parse(row['data'] as String),
+              data: _soData(DateTime.parse(row['data'] as String)),
             ))
         .toList();
   }
 
-  /// Insere uma nova aula na tabela `aulas`
-  static Future<AulaRecord> inserirAula({
-    required DateTime data,
-  }) async {
+  static Future<AulaRecord> inserirAula({required DateTime data}) async {
     final response = await _db
         .from('aulas')
-        .insert({
-          'data': data.toIso8601String().split('T').first,
-        })
+        .insert({'data': data.toIso8601String().split('T').first})
         .select('id, data')
         .single();
 
     return AulaRecord(
       id: response['id'] as String,
-      data: DateTime.parse(response['data'] as String),
+      data: _soData(DateTime.parse(response['data'] as String)),
     );
   }
 
-  /// Remove uma aula e suas chamadas da tabela `aulas`
-  /// (as chamadas são deletadas em cascata se configurado no Supabase,
-  ///  caso contrário são deletadas explicitamente aqui)
   static Future<void> deletarAula(String aulaId) async {
-    // Remove as chamadas vinculadas antes de deletar a aula
     await _db.from('chamadas').delete().eq('aula_id', aulaId);
     await _db.from('aulas').delete().eq('id', aulaId);
   }
 
   // ─── CHAMADAS ─────────────────────────────────────────────────────────────
 
-  /// Busca as chamadas de uma aula específica
   static Future<List<ChamadaRecord>> fetchChamadas(String aulaId) async {
     final data = await _db
         .from('chamadas')
@@ -128,59 +118,74 @@ class SupabaseService {
         .toList();
   }
 
-  /// Salva (upsert) a chamada de um aluno em uma aula
+  /// Salva (upsert) a chamada de um aluno.
+  /// Se o status for 'none', DELETA a linha — nunca salva valor inválido.
   static Future<void> salvarChamada({
     required String aulaId,
     required int idAluno,
     required AttendanceStatus status,
     String? comprovanteUrl,
   }) async {
+    if (status == AttendanceStatus.none) {
+      await _db
+          .from('chamadas')
+          .delete()
+          .eq('aula_id', aulaId)
+          .eq('id_aluno', idAluno);
+      return;
+    }
+
     await _db.from('chamadas').upsert(
       {
         'aula_id': aulaId,
         'id_aluno': idAluno,
         'status': _statusToString(status),
-        if (comprovanteUrl != null) 'comprovante_url': comprovanteUrl,
+        'comprovante_url': comprovanteUrl,
       },
       onConflict: 'aula_id,id_aluno',
     );
   }
 
-  /// Salva todas as chamadas de uma aula de uma vez (batch upsert)
+  /// Salva todas as chamadas em lote. Ignora alunos com status 'none'.
   static Future<void> salvarTodasChamadas({
     required String aulaId,
     required List<StudentRecord> alunos,
     required DateTime data,
   }) async {
-    final rows = alunos.map((aluno) {
-      final statuses =
-          aluno.attendance[data] ?? [AttendanceStatus.none];
-      final status = statuses.isNotEmpty
-          ? statuses.first
-          : AttendanceStatus.none;
-      return {
+    final dataKey = _soData(data);
+    final rows = <Map<String, dynamic>>[];
+
+    for (final aluno in alunos) {
+      final statuses = aluno.attendance[dataKey] ?? [AttendanceStatus.none];
+      final status =
+          statuses.isNotEmpty ? statuses.first : AttendanceStatus.none;
+
+      // NUNCA salva 'none' — viola a constraint chamadas_status_check
+      if (status == AttendanceStatus.none) continue;
+
+      rows.add({
         'aula_id': aulaId,
         'id_aluno': aluno.idAluno,
         'status': _statusToString(status),
-        'comprovante_url': aluno.atestadoNome[data],
-      };
-    }).toList();
+        'comprovante_url': aluno.atestadoNome[dataKey],
+      });
+    }
 
-    await _db
-        .from('chamadas')
-        .upsert(rows, onConflict: 'aula_id,id_aluno');
+    if (rows.isNotEmpty) {
+      await _db.from('chamadas').upsert(rows, onConflict: 'aula_id,id_aluno');
+    }
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
   static AttendanceStatus _parseStatus(String? s) {
     switch (s) {
-      case 'presente':
-        return AttendanceStatus.presente;
-      case 'atestado':
-        return AttendanceStatus.atestado;
-      case 'falta':
-        return AttendanceStatus.falta;
+      case 'P':
+        return AttendanceStatus.P;
+      case 'A':
+        return AttendanceStatus.A;
+      case 'F':
+        return AttendanceStatus.F;
       default:
         return AttendanceStatus.none;
     }
@@ -188,14 +193,15 @@ class SupabaseService {
 
   static String _statusToString(AttendanceStatus s) {
     switch (s) {
-      case AttendanceStatus.presente:
-        return 'presente';
-      case AttendanceStatus.atestado:
-        return 'atestado';
-      case AttendanceStatus.falta:
-        return 'falta';
+      case AttendanceStatus.P:
+        return 'P';
+      case AttendanceStatus.A:
+        return 'A';
+      case AttendanceStatus.F:
+        return 'F';
       case AttendanceStatus.none:
-        return 'none';
+        // Nunca deve chegar aqui — salvarChamada e salvarTodasChamadas filtram antes
+        return 'P';
     }
   }
 }

@@ -1,17 +1,17 @@
 import 'package:controle_instrumentos/features/chamada/tela_anual.dart';
-//import 'package:controle_instrumentos/features/login/login_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-//import 'package:controle_instrumentos/features/chamada/ui/presenca_page.dart';
+import 'package:controle_instrumentos/features/chamada/supabase_service.dart';
+import 'package:controle_instrumentos/features/chamada/models.dart';
+import 'package:controle_instrumentos/features/chamada/tela_atestado.dart';
+import 'package:controle_instrumentos/features/chamada/tela_dia.dart';
+import 'package:controle_instrumentos/features/chamada/tela_mes.dart';
+import 'package:controle_instrumentos/features/chamada/widgets.dart';
 
 void main() async {
-  // Garante a inicialização dos componentes do Flutter
   WidgetsFlutterBinding.ensureInitialized();
-  
 
-
-  // Inicializa a conexão real com o seu banco de dados Supabase
   await Supabase.initialize(
     url: 'https://ylcfdbonhrvvbclinado.supabase.co',
     anonKey: 'sb_publishable_YopOGM9CpLfvJXXiKNTHJw_Tx1RtZDn',
@@ -28,8 +28,19 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Controle de Instrumentos',
       debugShowCheckedModeBanner: false,
+
+      // ── Localização em Português do Brasil ────────────────────────────────
+      locale: const Locale('pt', 'BR'),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('pt', 'BR'),
+      ],
+
       theme: ThemeData(
-        // Tema configurado para combinar com o seu layout Dark/Roxo
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF4D00FF),
           brightness: Brightness.dark,

@@ -1,16 +1,9 @@
 // lib/features/chamada/tela_mes.dart
-// Tela de um mês:
-//   • Carrega alunos e aulas do Supabase
-//   • Subtítulo mostra contagem REAL de aulas (atualiza ao add/remover)
-//   • Adicionar / excluir alunos persiste no banco
-//   • Botão "+ data" cria aula no Supabase
-//   • Swipe / long-press em data para deletar aula
-//   • Pills circulares de status (P / A / F)
 
 import 'package:flutter/material.dart';
 import 'models.dart';
 import 'supabase_service.dart';
-import 'tela_dia.dart';
+import 'tela_atestado.dart';
 
 class TelaMes extends StatefulWidget {
   final int ano;
@@ -29,13 +22,16 @@ class TelaMes extends StatefulWidget {
 }
 
 class _TelaMesState extends State<TelaMes> {
-  List<AulaRecord> _aulas = [];
+  List<DateTime> _dates = [];
   List<StudentRecord> _students = [];
-  bool _carregando = true;
-  String? _erro;
+  List<AulaRecord> _aulasDoMes = [];
+  bool _loading = true;
 
-  // Contagem dinâmica — derivada de _aulas.length
-  int get _totalAulas => _aulas.length;
+  // Cores do design
+  static const _azul = Color(0xFF1976D2);
+  static const _verde = Color(0xFF4CAF50);
+  static const _amarelo = Color(0xFFFFC107);
+  static const _vermelho = Color(0xFFE53935);
 
   @override
   void initState() {
@@ -43,250 +39,106 @@ class _TelaMesState extends State<TelaMes> {
     _carregarDados();
   }
 
-  // ── Carrega alunos + aulas do Supabase ───────────────────────────────────
-  Future<void> _carregarDados() async {
-    setState(() {
-      _carregando = true;
-      _erro = null;
-    });
-    try {
-      final alunos = await SupabaseService.fetchAlunos();
-      final aulas = await SupabaseService.fetchAulas(
-        ano: widget.ano,
-        mes: widget.mes,
-      );
+  DateTime _soData(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
 
-      for (final aula in aulas) {
+  Future<void> _carregarDados() async {
+    if (!mounted) return;
+    setState(() => _loading = true);
+
+    try {
+      final resultados = await Future.wait([
+        SupabaseService.fetchAlunos(),
+        SupabaseService.fetchAulas(ano: widget.ano, mes: widget.mes),
+      ]);
+
+      final listaAlunos = resultados[0] as List<StudentRecord>;
+      final listaAulas = resultados[1] as List<AulaRecord>;
+
+      for (var aula in listaAulas) {
         final chamadas = await SupabaseService.fetchChamadas(aula.id);
-        for (final aluno in alunos) {
-          final chamada = chamadas.firstWhere(
-            (c) => c.idAluno == aluno.idAluno,
-            orElse: () => ChamadaRecord(
-              id: '',
-              aulaId: aula.id,
-              idAluno: aluno.idAluno,
-              status: AttendanceStatus.none,
-            ),
+        for (var chamada in chamadas) {
+          final aluno = listaAlunos.firstWhere(
+            (a) => a.idAluno == chamada.idAluno,
+            orElse: () => StudentRecord(idAluno: -1, name: '', attendance: {}),
           );
-          final dataKey =
-              DateTime(aula.data.year, aula.data.month, aula.data.day);
-          aluno.attendance[dataKey] = [chamada.status];
-          if (chamada.comprovanteUrl != null) {
-            aluno.atestadoNome[dataKey] = chamada.comprovanteUrl;
+          if (aluno.idAluno != -1) {
+            final dataKey = _soData(aula.data);
+            aluno.attendance[dataKey] = [chamada.status];
+            if (chamada.comprovanteUrl != null) {
+              aluno.atestadoNome[dataKey] = chamada.comprovanteUrl;
+            }
           }
         }
       }
 
-      setState(() {
-        _aulas = aulas;
-        _students = alunos;
-        _carregando = false;
-      });
+      if (mounted) {
+        setState(() {
+          _students = listaAlunos;
+          _aulasDoMes = listaAulas;
+          _dates = listaAulas.map((a) => _soData(a.data)).toList();
+          _loading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _erro = 'Erro ao carregar dados: $e';
-        _carregando = false;
-      });
+      debugPrint("Erro ao carregar: $e");
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  // ── Adicionar nova data (aula) via DatePicker ────────────────────────────
-  Future<void> _adicionarData() async {
-    final inicial = DateTime(widget.ano, widget.mes, 1);
-    final selecionada = await showDatePicker(
+  void _adicionarData() async {
+    final hoje = DateTime.now();
+    final initialDate = DateTime(widget.ano, widget.mes,
+        (widget.ano == hoje.year && widget.mes == hoje.month) ? hoje.day : 1);
+
+    final dataSelecionada = await showDatePicker(
       context: context,
-      initialDate: inicial,
+      initialDate: initialDate,
       firstDate: DateTime(widget.ano, widget.mes, 1),
       lastDate: DateTime(widget.ano, widget.mes + 1, 0),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme:
-              const ColorScheme.light(primary: Color(0xFF1976D2)),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(primary: _azul),
         ),
         child: child!,
       ),
     );
-    if (selecionada == null) return;
 
-    final novaData =
-        DateTime(selecionada.year, selecionada.month, selecionada.day);
-    final jaExiste = _aulas.any((a) =>
-        a.data.year == novaData.year &&
-        a.data.month == novaData.month &&
-        a.data.day == novaData.day);
-
-    if (jaExiste) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Já existe chamada para esta data.'),
-          backgroundColor: Colors.orange,
-        ));
-      }
-      return;
-    }
-
-    try {
-      final novaAula = await SupabaseService.inserirAula(data: novaData);
-      for (final s in _students) {
-        s.attendance[novaData] = [AttendanceStatus.none];
-      }
-      setState(() {
-        _aulas.add(novaAula);
-        _aulas.sort((a, b) => a.data.compareTo(b.data));
-        // _totalAulas é recalculado automaticamente a partir de _aulas.length
-      });
-      if (mounted) _abrirDia(novaAula);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erro ao criar aula: $e'),
-          backgroundColor: Colors.red,
-        ));
-      }
-    }
-  }
-
-  // ── Excluir aula ──────────────────────────────────────────────────────────
-  Future<void> _excluirAula(AulaRecord aula) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Excluir aula'),
-        content: Text(
-          'Deseja excluir a aula do dia ${_formatDate(aula.data)}?\n\n'
-          'Todas as chamadas deste dia também serão removidas.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Excluir'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      await SupabaseService.deletarAula(aula.id);
-      final dataKey =
-          DateTime(aula.data.year, aula.data.month, aula.data.day);
-      setState(() {
-        _aulas.removeWhere((a) => a.id == aula.id);
-        for (final s in _students) {
-          s.attendance.remove(dataKey);
-          s.atestadoNome.remove(dataKey);
+    if (dataSelecionada != null) {
+      // Verifica se a data já existe
+      final dataKey = _soData(dataSelecionada);
+      if (_dates.contains(dataKey)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Essa data já foi adicionada.")),
+          );
         }
-        // _totalAulas atualizado automaticamente
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Aula de ${_formatDate(aula.data)} removida.'),
-            backgroundColor: Colors.red.shade400,
-          ),
-        );
+        return;
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erro ao excluir aula: $e'),
-          backgroundColor: Colors.red,
-        ));
+
+      setState(() => _loading = true);
+      try {
+        await SupabaseService.inserirAula(data: dataKey);
+        await _carregarDados();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Erro ao criar aula: $e")),
+          );
+          setState(() => _loading = false);
+        }
       }
     }
   }
 
-  // ── Abrir TelaDia ────────────────────────────────────────────────────────
-  void _abrirDia(AulaRecord aula) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TelaDia(
-          aula: aula,
-          students: _students,
-          onChanged: () => setState(() {}),
-        ),
-      ),
-    );
-  }
-
-  // ── Adicionar aluno ───────────────────────────────────────────────────────
-  Future<void> _adicionarAluno() async {
-    final nomeController = TextEditingController();
-    final confirmed = await showDialog<bool>(
+  /// Exibe diálogo de confirmação e deleta a aula do banco
+  Future<void> _excluirData(DateTime date) async {
+    final dataKey = _soData(date);
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Adicionar aluno'),
-        content: TextField(
-          controller: nomeController,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            labelText: 'Nome completo',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF1976D2)),
-            child: const Text('Adicionar'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-    final nome = nomeController.text.trim();
-    if (nome.isEmpty) return;
-
-    try {
-      final novoAluno =
-          await SupabaseService.inserirAluno(nomeCompleto: nome);
-      for (final aula in _aulas) {
-        final dataKey =
-            DateTime(aula.data.year, aula.data.month, aula.data.day);
-        novoAluno.attendance[dataKey] = [AttendanceStatus.none];
-      }
-      setState(() => _students.add(novoAluno));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Aluno "$nome" adicionado!'),
-            backgroundColor: const Color(0xFF4CAF50),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erro ao adicionar aluno: $e'),
-          backgroundColor: Colors.red,
-        ));
-      }
-    }
-  }
-
-  // ── Excluir aluno ─────────────────────────────────────────────────────────
-  Future<void> _excluirAluno(StudentRecord aluno) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Excluir aluno'),
+        title: const Text('Excluir data'),
         content: Text(
-          'Deseja excluir "${aluno.name}"?\n\n'
-          'Todas as chamadas deste aluno também serão removidas.',
+          'Deseja excluir a aula de ${dataKey.day.toString().padLeft(2, '0')}/${dataKey.month.toString().padLeft(2, '0')}/${dataKey.year}?\n\nTodas as presenças desta data também serão removidas.',
         ),
         actions: [
           TextButton(
@@ -295,359 +147,305 @@ class _TelaMesState extends State<TelaMes> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFE53935)),
             child: const Text('Excluir'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirm != true) return;
 
+    setState(() => _loading = true);
     try {
-      await SupabaseService.deletarAluno(aluno.idAluno);
-      setState(
-          () => _students.removeWhere((s) => s.idAluno == aluno.idAluno));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Aluno "${aluno.name}" removido.'),
-            backgroundColor: Colors.red.shade400,
-          ),
-        );
-      }
+      final aula = _aulasDoMes.firstWhere((a) => _soData(a.data) == dataKey);
+      await SupabaseService.deletarAula(aula.id);
+      await _carregarDados();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erro ao excluir: $e'),
-          backgroundColor: Colors.red,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao excluir data: $e')),
+        );
+        setState(() => _loading = false);
       }
     }
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  String _formatDate(DateTime d) {
-    final dia = d.day.toString().padLeft(2, '0');
-    final mes = d.month.toString().padLeft(2, '0');
-    return '$dia/$mes';
+  /// Alterna o status e salva no Supabase
+  Future<void> _setStatus(
+      StudentRecord student, DateTime date, AttendanceStatus novoStatus) async {
+    final dataKey = _soData(date);
+
+    // Atualiza localmente antes (feedback imediato)
+    setState(() {
+      student.attendance[dataKey] = [novoStatus];
+      if (novoStatus != AttendanceStatus.A) {
+        student.atestadoNome[dataKey] = null;
+      }
+    });
+
+    try {
+      final aulaId =
+          _aulasDoMes.firstWhere((a) => _soData(a.data) == dataKey).id;
+
+      await SupabaseService.salvarChamada(
+        aulaId: aulaId,
+        idAluno: student.idAluno,
+        status: novoStatus,
+        comprovanteUrl: novoStatus == AttendanceStatus.A
+            ? student.atestadoNome[dataKey]
+            : null,
+      );
+    } catch (e) {
+      // Reverte em caso de erro
+      if (mounted) {
+        setState(() {
+          student.attendance[dataKey] = [AttendanceStatus.none];
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erro ao salvar: $e")),
+        );
+      }
+    }
   }
 
-  List<DateTime> get _dates =>
-      _aulas.map((a) => DateTime(a.data.year, a.data.month, a.data.day)).toList();
-
-  // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      appBar: _buildAppBar(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _adicionarAluno,
-        backgroundColor: const Color(0xFF1976D2),
-        child: const Icon(Icons.person_add_outlined, color: Colors.white),
-      ),
-      body: _carregando
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF1976D2)))
-          : _erro != null
-              ? _buildErro()
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildDatasRow(),
-                    _buildSectionLabel('ALUNOS'),
-                    Expanded(child: _buildAlunosList()),
-                    const _AttendanceLegend(),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-    );
-  }
-
-  AppBar _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      surfaceTintColor: Colors.transparent,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.black87),
-        onPressed: () => Navigator.pop(context),
-      ),
-      title: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '${widget.nomesMes} ${widget.ano}',
-            style: const TextStyle(
+      backgroundColor: const Color(0xFFF5F6FA),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${widget.nomesMes} ${widget.ano}',
+              style: const TextStyle(
                 color: Colors.black87,
                 fontWeight: FontWeight.bold,
-                fontSize: 17),
-          ),
-          // Subtítulo: contagem DINÂMICA de aulas e alunos
-          Text(
-            '$_totalAulas data${_totalAulas != 1 ? 's' : ''} · '
-            '${_students.length} aluno${_students.length != 1 ? 's' : ''}',
-            style: const TextStyle(
+                fontSize: 18,
+              ),
+            ),
+            Text(
+              '${_dates.length} data${_dates.length != 1 ? 's' : ''} · ${_students.length} aluno${_students.length != 1 ? 's' : ''}',
+              style: const TextStyle(
                 color: Colors.black45,
                 fontSize: 11,
-                fontWeight: FontWeight.normal),
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: FloatingActionButton.small(
+              onPressed: _adicionarData,
+              backgroundColor: _azul,
+              elevation: 0,
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
           ),
         ],
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.add, color: Color(0xFF1976D2)),
-          tooltip: 'Adicionar data de aula',
-          onPressed: _adicionarData,
-        ),
-      ],
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: _azul))
+          : _students.isEmpty
+              ? _buildVazio()
+              : _buildConteudo(),
     );
   }
 
-  Widget _buildErro() {
+  Widget _buildVazio() {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
-          const SizedBox(height: 12),
-          Text(_erro!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.black54)),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: _carregarDados,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Tentar novamente'),
-            style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF1976D2)),
+          Icon(Icons.people_outline, size: 56, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text(
+            'Nenhum aluno cadastrado.',
+            style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w500),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDatasRow() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildConteudo() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
       children: [
-        _buildSectionLabel('DATAS DE AULA'),
-        SizedBox(
-          height: 40,
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            scrollDirection: Axis.horizontal,
-            children: [
-              ..._aulas.map((aula) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: _DataChip(
-                      label: _formatDate(aula.data),
-                      onTap: () => _abrirDia(aula),
-                      onDelete: () => _excluirAula(aula),
-                    ),
-                  )),
-              // Botão "+ data"
-              GestureDetector(
-                onTap: _adicionarData,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: const Color(0xFF1976D2), width: 1.2),
-                  ),
-                  child: const Text(
-                    '+ data',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF1976D2),
-                        fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        // ── Chips de datas ──────────────────────────────────────────────────
+        _buildSecaoTitulo('DATAS DE AULA'),
         const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ..._dates.map((d) => _ChipData(
+                  dia: d.day,
+                  mes: d.month,
+                  cor: _azul,
+                  onExcluir: () => _excluirData(d),
+                )),
+            _ChipAdicionar(onTap: _adicionarData),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // ── Lista de alunos ─────────────────────────────────────────────────
+        _buildSecaoTitulo('ALUNOS'),
+        const SizedBox(height: 8),
+        ..._students.map((student) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _CardAlunoMes(
+                student: student,
+                dates: _dates,
+                aulasDoMes: _aulasDoMes,
+                onSetStatus: (date, status) =>
+                    _setStatus(student, date, status),
+                onAnexarAtestado: (date) => _abrirAtestado(student, date),
+                soData: _soData,
+              ),
+            )),
+
+        const SizedBox(height: 16),
+        // ── Legenda ─────────────────────────────────────────────────────────
+        _buildLegenda(),
+        const SizedBox(height: 24),
       ],
     );
   }
 
-  Widget _buildSectionLabel(String texto) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-      child: Text(
-        texto,
-        style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade500,
-            letterSpacing: 0.6),
+  Widget _buildSecaoTitulo(String titulo) {
+    return Text(
+      titulo,
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        color: Colors.grey.shade500,
+        letterSpacing: 0.8,
       ),
     );
   }
 
-  Widget _buildAlunosList() {
-    if (_aulas.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.calendar_today_outlined,
-                size: 48, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'Toque em + para adicionar\na primeira data de aula',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade500,
-                  height: 1.5),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_students.isEmpty) {
-      return Center(
-        child: Text('Nenhum aluno cadastrado',
-            style:
-                TextStyle(fontSize: 13, color: Colors.grey.shade400)),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _students.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, si) => _CardAlunoMes(
-        student: _students[si],
-        dates: _dates,
-        onExcluir: () => _excluirAluno(_students[si]),
-      ),
+  Widget _buildLegenda() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _itemLegenda(_verde, 'Presente'),
+        const SizedBox(width: 16),
+        _itemLegenda(_amarelo, 'Atestado'),
+        const SizedBox(width: 16),
+        _itemLegenda(_vermelho, 'Falta'),
+      ],
     );
   }
-}
 
-// ─── Chip de data com opção de deletar (long-press) ───────────────────────────
-
-class _DataChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  final VoidCallback onDelete;
-
-  const _DataChip({
-    required this.label,
-    required this.onTap,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      onLongPress: onDelete,
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade300, width: 0.8),
+  Widget _itemLegenda(Color cor, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: cor, shape: BoxShape.circle),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.close,
-                size: 12, color: Colors.grey.shade400),
-          ],
+        const SizedBox(width: 4),
+        Text(label,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+      ],
+    );
+  }
+
+  void _abrirAtestado(StudentRecord student, DateTime date) {
+    final dataKey = _soData(date);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TelaAtestado(
+          student: student,
+          data: dataKey,
+          onAnexado: (nome) async {
+            try {
+              final aulaId =
+                  _aulasDoMes.firstWhere((a) => _soData(a.data) == dataKey).id;
+              await SupabaseService.salvarChamada(
+                aulaId: aulaId,
+                idAluno: student.idAluno,
+                status: AttendanceStatus.A,
+                comprovanteUrl: nome,
+              );
+              setState(() => student.atestadoNome[dataKey] = nome);
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Erro ao salvar atestado: $e")),
+                );
+              }
+            }
+          },
         ),
       ),
     );
   }
 }
 
-// ─── Card de aluno na visão mensal ────────────────────────────────────────────
+// ─── Chip de data ─────────────────────────────────────────────────────────────
 
-class _CardAlunoMes extends StatelessWidget {
-  final StudentRecord student;
-  final List<DateTime> dates;
+class _ChipData extends StatelessWidget {
+  final int dia;
+  final int mes;
+  final Color cor;
   final VoidCallback onExcluir;
 
-  const _CardAlunoMes({
-    required this.student,
-    required this.dates,
+  const _ChipData({
+    required this.dia,
+    required this.mes,
+    required this.cor,
     required this.onExcluir,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200, width: 0.8),
+        color: cor.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: cor.withOpacity(0.30), width: 0.8),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor:
-                const Color(0xFF1976D2).withOpacity(0.12),
-            child: Text(
-              student.name[0].toUpperCase(),
-              style: const TextStyle(
-                  color: Color(0xFF1976D2),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13),
-            ),
+          Text(
+            '${dia.toString().padLeft(2, '0')}/${mes.toString().padLeft(2, '0')}',
+            style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600, color: cor),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              student.name,
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87),
-            ),
-          ),
-          const SizedBox(width: 8),
-          if (dates.isEmpty)
-            Text('—',
-                style: TextStyle(
-                    fontSize: 11, color: Colors.grey.shade400))
-          else
-            Wrap(
-              spacing: 4,
-              runSpacing: 4,
-              children: dates.map((d) {
-                final statuses = student.attendance[d];
-                final status = (statuses != null && statuses.isNotEmpty)
-                    ? statuses.first
-                    : AttendanceStatus.none;
-                return _StatusCircle(status: status);
-              }).toList(),
-            ),
           const SizedBox(width: 6),
           GestureDetector(
             onTap: onExcluir,
-            child: Icon(Icons.delete_outline,
-                size: 20, color: Colors.grey.shade400),
+            child: Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                color: cor.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.remove, size: 12, color: cor),
+            ),
           ),
         ],
       ),
@@ -655,80 +453,294 @@ class _CardAlunoMes extends StatelessWidget {
   }
 }
 
-class _StatusCircle extends StatelessWidget {
-  final AttendanceStatus status;
-  const _StatusCircle({required this.status});
+class _ChipAdicionar extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ChipAdicionar({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final isEmpty = status == AttendanceStatus.none;
-    return Container(
-      width: 26,
-      height: 26,
-      decoration: BoxDecoration(
-        color: isEmpty ? Colors.grey.shade200 : status.backgroundColor,
-        shape: BoxShape.circle,
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        isEmpty ? '' : status.label,
-        style: TextStyle(
-          color: isEmpty ? Colors.grey.shade500 : Colors.white,
-          fontWeight: FontWeight.w700,
-          fontSize: 11,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: const Color(0xFF1976D2).withOpacity(0.40),
+              width: 0.8,
+              style: BorderStyle.solid),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.add, size: 14, color: Color(0xFF1976D2)),
+            SizedBox(width: 4),
+            Text('+ data',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1976D2))),
+          ],
         ),
       ),
     );
   }
 }
 
-class _AttendanceLegend extends StatelessWidget {
-  const _AttendanceLegend();
+// ─── Card de aluno na tela do mês ────────────────────────────────────────────
+
+class _CardAlunoMes extends StatelessWidget {
+  final StudentRecord student;
+  final List<DateTime> dates;
+  final List<AulaRecord> aulasDoMes;
+  final void Function(DateTime date, AttendanceStatus status) onSetStatus;
+  final void Function(DateTime date) onAnexarAtestado;
+  final DateTime Function(DateTime) soData;
+
+  static const _verde = Color(0xFF4CAF50);
+  static const _amarelo = Color(0xFFFFC107);
+  static const _vermelho = Color(0xFFE53935);
+
+  const _CardAlunoMes({
+    required this.student,
+    required this.dates,
+    required this.aulasDoMes,
+    required this.onSetStatus,
+    required this.onAnexarAtestado,
+    required this.soData,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _LegendItem(
-              color: AttendanceStatus.presente.backgroundColor,
-              label: 'Presente'),
-          const SizedBox(width: 16),
-          _LegendItem(
-              color: AttendanceStatus.atestado.backgroundColor,
-              label: 'Atestado'),
-          const SizedBox(width: 16),
-          _LegendItem(
-              color: AttendanceStatus.falta.backgroundColor,
-              label: 'Falta'),
+          // ── Cabeçalho do aluno ──────────────────────────────────────────
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor:
+                    const Color(0xFF1976D2).withOpacity(0.12),
+                child: Text(
+                  student.name[0].toUpperCase(),
+                  style: const TextStyle(
+                    color: Color(0xFF1976D2),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  student.name,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              // Pills de resumo
+              ...dates.map((d) {
+                final status =
+                    student.attendance[soData(d)]?.first ??
+                        AttendanceStatus.none;
+                if (status == AttendanceStatus.none) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Container(
+                    width: 26,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: status.backgroundColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      status.label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+
+          if (dates.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: Color(0xFFF0F0F0)),
+            const SizedBox(height: 12),
+
+            // ── Linha de botões por data ────────────────────────────────
+            ...dates.map((date) {
+              final dataKey = soData(date);
+              final status =
+                  student.attendance[dataKey]?.first ?? AttendanceStatus.none;
+              final temAtestado = status == AttendanceStatus.A;
+              final arquivoNome = student.atestadoNome[dataKey];
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Label da data
+                    Text(
+                      '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    // Botões P / F / A
+                    Row(
+                      children: [
+                        _BotaoStatus(
+                          label: 'Presente',
+                          cor: _verde,
+                          selecionado: status == AttendanceStatus.P,
+                          onTap: () => onSetStatus(
+                              date, AttendanceStatus.P),
+                        ),
+                        const SizedBox(width: 6),
+                        _BotaoStatus(
+                          label: 'Falta',
+                          cor: _vermelho,
+                          selecionado: status == AttendanceStatus.F,
+                          onTap: () =>
+                              onSetStatus(date, AttendanceStatus.F),
+                        ),
+                        const SizedBox(width: 6),
+                        _BotaoStatus(
+                          label: 'Atestado',
+                          cor: _amarelo,
+                          selecionado: temAtestado,
+                          onTap: () =>
+                              onSetStatus(date, AttendanceStatus.A),
+                        ),
+                      ],
+                    ),
+                    // Atalho para anexar comprovante
+                    if (temAtestado) ...[
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () => onAnexarAtestado(date),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _amarelo.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                                color: _amarelo.withOpacity(0.35),
+                                width: 0.8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                arquivoNome != null
+                                    ? Icons.check_circle_outline
+                                    : Icons.attach_file,
+                                size: 14,
+                                color: arquivoNome != null
+                                    ? _verde
+                                    : Colors.black45,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                arquivoNome ?? 'Anexar comprovante',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: arquivoNome != null
+                                      ? _verde
+                                      : Colors.black54,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.chevron_right,
+                                  size: 14, color: Colors.grey.shade400),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }),
+          ],
         ],
       ),
     );
   }
 }
 
-class _LegendItem extends StatelessWidget {
-  final Color color;
+// ─── Botão de status (Presente / Falta / Atestado) ────────────────────────────
+
+class _BotaoStatus extends StatelessWidget {
   final String label;
-  const _LegendItem({required this.color, required this.label});
+  final Color cor;
+  final bool selecionado;
+  final VoidCallback onTap;
+
+  const _BotaoStatus({
+    required this.label,
+    required this.cor,
+    required this.selecionado,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-            width: 8,
-            height: 8,
-            decoration:
-                BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 5),
-        Text(label,
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: selecionado ? cor : cor.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selecionado ? cor : cor.withOpacity(0.25),
+              width: 1.5,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
             style: TextStyle(
-                fontSize: 11, color: Colors.grey.shade600)),
-      ],
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: selecionado ? Colors.white : cor,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

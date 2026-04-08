@@ -35,7 +35,12 @@ class _TelaDiaState extends State<TelaDia> {
 
   late List<StudentRecord> _students;
 
-  DateTime get _data => widget.aula.data;
+  /// Normaliza qualquer DateTime para meia-noite local (sem hora/fuso).
+  /// Garante que datas do banco (UTC) e do app sejam iguais como chave de Map.
+  DateTime _soData(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+
+  /// Data da aula sempre normalizada — usada como chave em todos os Maps.
+  DateTime get _dataKey => _soData(widget.aula.data);
 
   @override
   void initState() {
@@ -68,10 +73,10 @@ class _TelaDiaState extends State<TelaDia> {
             status: AttendanceStatus.none,
           ),
         );
-        final dataKey = DateTime(_data.year, _data.month, _data.day);
-        aluno.attendance[dataKey] = [chamada.status];
+        // FIX: usa _dataKey normalizado como chave do Map
+        aluno.attendance[_dataKey] = [chamada.status];
         if (chamada.comprovanteUrl != null) {
-          aluno.atestadoNome[dataKey] = chamada.comprovanteUrl;
+          aluno.atestadoNome[_dataKey] = chamada.comprovanteUrl;
         }
       }
 
@@ -90,9 +95,10 @@ class _TelaDiaState extends State<TelaDia> {
   // ── Alterar status de um aluno ────────────────────────────────────────────
   void _setStatus(int si, int ri, AttendanceStatus novoStatus) {
     setState(() {
-      _students[si].attendance[_data]![ri] = novoStatus;
-      if (novoStatus != AttendanceStatus.atestado) {
-        _students[si].atestadoNome[_data] = null;
+      // FIX: usa _dataKey normalizado em vez de _data diretamente
+      _students[si].attendance[_dataKey]![ri] = novoStatus;
+      if (novoStatus != AttendanceStatus.A) {
+        _students[si].atestadoNome[_dataKey] = null;
       }
       _temAlteracoes = true;
     });
@@ -106,10 +112,11 @@ class _TelaDiaState extends State<TelaDia> {
       MaterialPageRoute(
         builder: (_) => TelaAtestado(
           student: _students[si],
-          data: _data,
+          data: _dataKey, // FIX: passa _dataKey normalizado
           onAnexado: (nomeArquivo) {
             setState(() {
-              _students[si].atestadoNome[_data] = nomeArquivo;
+              // FIX: usa _dataKey normalizado
+              _students[si].atestadoNome[_dataKey] = nomeArquivo;
               _temAlteracoes = true;
             });
             widget.onChanged?.call();
@@ -126,7 +133,7 @@ class _TelaDiaState extends State<TelaDia> {
       await SupabaseService.salvarTodasChamadas(
         aulaId: widget.aula.id,
         alunos: _students,
-        data: _data,
+        data: _dataKey, // FIX: passa _dataKey normalizado
       );
       setState(() {
         _salvando = false;
@@ -188,7 +195,7 @@ class _TelaDiaState extends State<TelaDia> {
                                   const SizedBox(height: 10),
                               itemBuilder: (context, si) => _CardAluno(
                                 student: _students[si],
-                                data: _data,
+                                data: _dataKey, // FIX: passa _dataKey normalizado
                                 onSetStatus: (ri, status) =>
                                     _setStatus(si, ri, status),
                                 onAbrirAtestado: () => _abrirAtestado(si),
@@ -227,7 +234,7 @@ class _TelaDiaState extends State<TelaDia> {
                 fontSize: 16),
           ),
           Text(
-            _formatDate(_data),
+            _formatDate(_dataKey),
             style: const TextStyle(
                 color: Colors.black45,
                 fontSize: 11,
@@ -401,8 +408,9 @@ class _CardAluno extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // data já chega normalizado via _dataKey, sem risco de fuso
     final statuses = student.attendance[data] ?? [AttendanceStatus.none];
-    final temAtestado = statuses.contains(AttendanceStatus.atestado);
+    final temAtestado = statuses.contains(AttendanceStatus.A);
     final arquivoNome = student.atestadoNome[data];
 
     return Container(
@@ -489,30 +497,30 @@ class _CardAluno extends StatelessWidget {
                   Row(
                     children: [
                       BotaoStatus(
-                        label: 'Presente',
+                        label: 'P',
                         cor: const Color(0xFF4CAF50),
                         selecionado:
-                            statuses[ri] == AttendanceStatus.presente,
+                            statuses[ri] == AttendanceStatus.P,
                         onTap: () =>
-                            onSetStatus(ri, AttendanceStatus.presente),
+                            onSetStatus(ri, AttendanceStatus.P),
                       ),
                       const SizedBox(width: 8),
                       BotaoStatus(
-                        label: 'Falta',
+                        label: 'F',
                         cor: const Color(0xFFE53935),
                         selecionado:
-                            statuses[ri] == AttendanceStatus.falta,
+                            statuses[ri] == AttendanceStatus.F,
                         onTap: () =>
-                            onSetStatus(ri, AttendanceStatus.falta),
+                            onSetStatus(ri, AttendanceStatus.F),
                       ),
                       const SizedBox(width: 8),
                       BotaoStatus(
                         label: 'Atestado',
                         cor: const Color(0xFFFFC107),
                         selecionado:
-                            statuses[ri] == AttendanceStatus.atestado,
+                            statuses[ri] == AttendanceStatus.A,
                         onTap: () =>
-                            onSetStatus(ri, AttendanceStatus.atestado),
+                            onSetStatus(ri, AttendanceStatus.A),
                       ),
                     ],
                   ),
