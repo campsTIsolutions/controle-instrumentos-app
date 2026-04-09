@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AlunosPage extends StatefulWidget {
@@ -20,11 +22,16 @@ class _AlunosPageState extends State<AlunosPage> {
   final int _itensPorPagina = 10;
 
   bool _ordenarAlfabetico = false;
-  String? _filtroCategoria;
-  String? _filtroSetor;
-
-  final _categorias = ['Mentora', 'Kids', 'Avancar', 'Aprendiz', 'Ex-Aprendiz'];
-  final _setores = ['Danca', 'Escudo', 'Pavilhao', 'Linha', 'Baliza'];
+  List<String> _filtroCategoria = [];
+  List<String> _filtroSetor = [];
+  final _categorias = [
+    'Mentor(a)',
+    'Kids',
+    'Avançar',
+    'Aprendiz',
+    'Ex-Aprendiz',
+  ];
+  final _setores = ['Dança', 'Escudo', 'Pavilhão', 'Linha', 'Baliza'];
 
   @override
   void initState() {
@@ -44,7 +51,7 @@ class _AlunosPageState extends State<AlunosPage> {
       final response = await _supabase
           .from('alunos')
           .select(
-            'id_aluno, numero_aluno, nome_completo, setor, categoria_usuario, nivel, telefone, id_instrumento',
+            'id_aluno, numero_aluno, nome_completo, setor, categoria_usuario, nivel, telefone, imagem_url, idade',
           )
           .order('id_aluno', ascending: true);
 
@@ -80,14 +87,16 @@ class _AlunosPageState extends State<AlunosPage> {
           .toList();
     }
 
-    if (_filtroCategoria != null) {
+    if (_filtroCategoria.isNotEmpty) {
       resultado = resultado
-          .where((a) => a['categoria_usuario'] == _filtroCategoria)
+          .where((a) => _filtroCategoria.contains(a['categoria_usuario']))
           .toList();
     }
 
-    if (_filtroSetor != null) {
-      resultado = resultado.where((a) => a['setor'] == _filtroSetor).toList();
+    if (_filtroSetor.isNotEmpty) {
+      resultado = resultado
+          .where((a) => _filtroSetor.contains(a['setor']))
+          .toList();
     }
 
     if (_ordenarAlfabetico) {
@@ -117,36 +126,49 @@ class _AlunosPageState extends State<AlunosPage> {
       (_alunosFiltrados.length / _itensPorPagina).ceil().clamp(1, 9999);
 
   Future<void> _deletarAluno(int id) async {
-    final confirmar = await showDialog<bool>(
+    final resultado = await showDialog<Map<String, String>>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirmar exclusão'),
-        content: const Text('Tem certeza que deseja excluir este aluno?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Excluir', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (ctx) => const _DialogJustificativaExclusao(),
     );
-    if (confirmar == true) {
-      try {
-        await _supabase.from('alunos').delete().eq('id_aluno', id);
-        _carregarAlunos();
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erro ao excluir: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+
+    if (resultado == null) return;
+
+    try {
+      final aluno = _alunos.firstWhere((a) => a['id_aluno'] == id);
+      await _supabase.from('logs').insert({
+        'id_aluno': aluno['id_aluno'],
+        'numero_aluno': aluno['numero_aluno'],
+        'nome_completo': aluno['nome_completo'],
+        'setor': aluno['setor'],
+        'categoria_usuario': aluno['categoria_usuario'],
+        'nivel': aluno['nivel'],
+        'telefone': aluno['telefone'],
+        'imagem_url': aluno['imagem_url'],
+        'idade': aluno['idade'],
+        'motivo_exclusao': resultado['motivo'],
+        'data_exclusao': DateTime.now().toIso8601String(),
+      });
+
+      await _supabase.from('alunos').delete().eq('id_aluno', id);
+      _carregarAlunos();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Aluno excluído com sucesso.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao excluir: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -154,18 +176,34 @@ class _AlunosPageState extends State<AlunosPage> {
   void _abrirDialogAluno({Map<String, dynamic>? aluno}) {
     showDialog(
       context: context,
-      // MODIFICAÇÃO 1: useMaterialPageRoute = false + barrierColor mais suave
-      // Em telas pequenas o Dialog ocupa quase toda a tela; usar BottomSheet
-      // seria melhor ergonomicamente, mas mantemos Dialog para compatibilidade.
       builder: (ctx) => _AlunoDialog(
         aluno: aluno,
-        onSalvar: (dados) async {
+        onSalvar: (dados, imagemFile) async {
+          String? imagemUrl = aluno?['imagem_url'] as String?;
+
+          if (imagemFile != null) {
+            final bytes = await imagemFile.readAsBytes();
+            final nomeArquivo =
+                '${DateTime.now().millisecondsSinceEpoch}_${imagemFile.path.split('/').last}';
+            await _supabase.storage
+                .from('alunos-fotos')
+                .uploadBinary(nomeArquivo, bytes);
+            imagemUrl = _supabase.storage
+                .from('alunos-fotos')
+                .getPublicUrl(nomeArquivo);
+          }
+
+          final dadosFinais = {
+            ...dados,
+            if (imagemUrl != null) 'imagem_url': imagemUrl,
+          };
+
           if (aluno == null) {
-            await _supabase.from('alunos').insert(dados);
+            await _supabase.from('alunos').insert(dadosFinais);
           } else {
             await _supabase
                 .from('alunos')
-                .update(dados)
+                .update(dadosFinais)
                 .eq('id_aluno', aluno['id_aluno']);
           }
           if (mounted) Navigator.pop(ctx);
@@ -177,38 +215,28 @@ class _AlunosPageState extends State<AlunosPage> {
 
   @override
   Widget build(BuildContext context) {
-    // MODIFICAÇÃO 2: capturamos a largura da tela para decisões responsivas
     final screenWidth = MediaQuery.of(context).size.width;
-    // Considerar tablet se largura >= 600dp (breakpoint padrão Material)
     final isTablet = screenWidth >= 600;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F3F5),
       body: SafeArea(
-        // MODIFICAÇÃO 3: SafeArea garante que o conteúdo não fique atrás de
-        // notch, status bar ou home indicator em qualquer dispositivo.
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Título ──
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 20, 16, 10),
-                // MODIFICAÇÃO 4: padding horizontal reduzido de 20→16 para
-                // ganhar espaço útil em telas estreitas (< 360dp).
                 child: Text(
                   'Alunos',
                   style: TextStyle(
                     fontSize: 26,
-                    // MODIFICAÇÃO 5: fonte levemente menor (28→26) para não
-                    // quebrar em dispositivos com fonte grande do sistema.
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF1A1A2E),
                   ),
                 ),
               ),
 
-              // ── Barra de busca ──
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -235,87 +263,224 @@ class _AlunosPageState extends State<AlunosPage> {
 
               const SizedBox(height: 8),
 
-              // ── Filtros ──
-              // MODIFICAÇÃO 6: SingleChildScrollView horizontal nos filtros.
-              // No layout anterior o Wrap poderia quebrar mal em telas muito
-              // pequenas. O scroll horizontal mantém os chips visíveis sem
-              // alterar a altura do bloco.
+              // ── Filtros horizontais ────────────────────────────────────────
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Checkbox ordem alfabética
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            // MODIFICAÇÃO 7: caixa menor no Checkbox para
-                            // economizar espaço horizontal em mobile.
-                            width: 32,
-                            height: 32,
-                            child: Checkbox(
-                              value: _ordenarAlfabetico,
-                              activeColor: const Color(0xFF2563EB),
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                              onChanged: (v) {
-                                setState(() => _ordenarAlfabetico = v ?? false);
-                                _aplicarFiltros();
+                    // A-Z: Column com label vazio para alinhar com os demais
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Label invisível com a mesma altura dos demais labels
+                        const Text(
+                          '',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _ordenarAlfabetico
+                                  ? const Color(0xFF2563EB)
+                                  : const Color(0xFFE5E7EB),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Checkbox(
+                                value: _ordenarAlfabetico,
+                                activeColor: const Color(0xFF2563EB),
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                onChanged: (v) {
+                                  setState(
+                                    () => _ordenarAlfabetico = v ?? false,
+                                  );
+                                  _aplicarFiltros();
+                                },
+                              ),
+                              const Text(
+                                'A-Z',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(width: 10),
+
+                    // Categoria
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Categoria',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.black,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Wrap(
+                          spacing: 8,
+                          children: _categorias.map((cat) {
+                            final selecionado = _filtroCategoria.contains(cat);
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (selecionado) {
+                                    _filtroCategoria.remove(cat);
+                                  } else {
+                                    _filtroCategoria.add(cat);
+                                  }
+                                  _aplicarFiltros();
+                                });
                               },
-                            ),
-                          ),
-                          const Text(
-                            'A-Z',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF374151),
-                            ),
-                          ),
-                        ],
-                      ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: selecionado
+                                        ? const Color(0xFF2563EB)
+                                        : const Color(0xFFE5E7EB),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Checkbox(
+                                      value: selecionado,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          if (value == true) {
+                                            _filtroCategoria.add(cat);
+                                          } else {
+                                            _filtroCategoria.remove(cat);
+                                          }
+                                          _aplicarFiltros();
+                                        });
+                                      },
+                                      activeColor: const Color(0xFF2563EB),
+                                      checkColor: Colors.white,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    Text(
+                                      cat,
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ),
 
                     const SizedBox(width: 10),
 
-                    _FiltroDropdown(
-                      hint: 'Categoria',
-                      valor: _filtroCategoria,
-                      opcoes: _categorias,
-                      onChanged: (v) {
-                        setState(() => _filtroCategoria = v);
-                        _aplicarFiltros();
-                      },
-                      onLimpar: () {
-                        setState(() => _filtroCategoria = null);
-                        _aplicarFiltros();
-                      },
-                    ),
-
-                    const SizedBox(width: 10),
-
-                    _FiltroDropdown(
-                      hint: 'Setor',
-                      valor: _filtroSetor,
-                      opcoes: _setores,
-                      onChanged: (v) {
-                        setState(() => _filtroSetor = v);
-                        _aplicarFiltros();
-                      },
-                      onLimpar: () {
-                        setState(() => _filtroSetor = null);
-                        _aplicarFiltros();
-                      },
+                    // Setor
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Setor',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.black,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Wrap(
+                          spacing: 8,
+                          children: _setores.map((setor) {
+                            final selecionado = _filtroSetor.contains(setor);
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  if (selecionado) {
+                                    _filtroSetor.remove(setor);
+                                  } else {
+                                    _filtroSetor.add(setor);
+                                  }
+                                  _aplicarFiltros();
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: selecionado
+                                        ? const Color(0xFF2563EB)
+                                        : const Color(0xFFE5E7EB),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Checkbox(
+                                      value: selecionado,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          if (value == true) {
+                                            _filtroSetor.add(setor);
+                                          } else {
+                                            _filtroSetor.remove(setor);
+                                          }
+                                          _aplicarFiltros();
+                                        });
+                                      },
+                                      activeColor: const Color(0xFF2563EB),
+                                      checkColor: Colors.white,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                    Text(
+                                      setor,
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -323,7 +488,6 @@ class _AlunosPageState extends State<AlunosPage> {
 
               const SizedBox(height: 10),
 
-              // ── Lista / Tabela ──
               if (_isLoading)
                 const Center(
                   child: Padding(
@@ -337,10 +501,6 @@ class _AlunosPageState extends State<AlunosPage> {
                   child: Center(child: Text('Nenhum aluno encontrado.')),
                 )
               else ...[
-                // MODIFICAÇÃO 8: decisão responsiva entre tabela (tablet) e
-                // cards (mobile). Em telas < 600dp a tabela com SizedBox fixos
-                // transbordava — agora exibimos cards verticais que cabem em
-                // qualquer largura.
                 if (isTablet)
                   _TabelaDesktop(
                     alunos: _alunosPaginados,
@@ -356,7 +516,6 @@ class _AlunosPageState extends State<AlunosPage> {
                     onDeletar: (a) => _deletarAluno(a['id_aluno'] as int),
                   ),
 
-                // Rodapé de paginação
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
@@ -409,8 +568,299 @@ class _AlunosPageState extends State<AlunosPage> {
   }
 }
 
-// ─── MODIFICAÇÃO 9: tabela original renomeada para _TabelaDesktop ─────────────
-// Usada apenas em tablets (>= 600dp) onde há espaço suficiente.
+// ─── Modal de Justificativa de Exclusão ───────────────────────────────────────
+
+class _DialogJustificativaExclusao extends StatefulWidget {
+  const _DialogJustificativaExclusao();
+
+  @override
+  State<_DialogJustificativaExclusao> createState() =>
+      _DialogJustificativaExclusaoState();
+}
+
+class _DialogJustificativaExclusaoState
+    extends State<_DialogJustificativaExclusao> {
+  String? _motivoSelecionado;
+  final _outroCtrl = TextEditingController();
+  bool _confirmando = false;
+
+  static const _motivos = [
+    'Falta de Tempo',
+    'Falta de Disciplina',
+    'Falta de Interesse',
+    'Outro',
+  ];
+
+  static const _icones = {
+    'Falta de Tempo': Icons.schedule_outlined,
+    'Falta de Disciplina': Icons.rule_outlined,
+    'Falta de Interesse': Icons.sentiment_dissatisfied_outlined,
+    'Outro': Icons.edit_note_outlined,
+  };
+
+  @override
+  void dispose() {
+    _outroCtrl.dispose();
+    super.dispose();
+  }
+
+  void _confirmar() {
+    if (_motivoSelecionado == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione um motivo para a exclusão.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    if (_motivoSelecionado == 'Outro' && _outroCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Descreva o motivo da exclusão.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final motivo = _motivoSelecionado == 'Outro'
+        ? 'Outro: ${_outroCtrl.text.trim()}'
+        : _motivoSelecionado!;
+
+    Navigator.pop(context, {'motivo': motivo});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: const Color(0xFF1E1E2E),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFB91C1C).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        'Excluir Aluno',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Esta ação não pode ser desfeita.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.white54),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            const Text(
+              'Motivo da exclusão',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFFD1D5DB),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Selecione o principal motivo pelo qual este aluno está sendo desligado.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+            ),
+
+            const SizedBox(height: 14),
+
+            ...(_motivos.map((motivo) {
+              final selecionado = _motivoSelecionado == motivo;
+              return GestureDetector(
+                onTap: () => setState(() => _motivoSelecionado = motivo),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selecionado
+                        ? const Color(0xFFB91C1C).withOpacity(0.15)
+                        : const Color(0xFF2A2A3E),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: selecionado
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFF374151),
+                      width: selecionado ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _icones[motivo]!,
+                        size: 20,
+                        color: selecionado
+                            ? const Color(0xFFEF4444)
+                            : const Color(0xFF9CA3AF),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          motivo,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: selecionado
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                            color: selecionado
+                                ? Colors.white
+                                : const Color(0xFFD1D5DB),
+                          ),
+                        ),
+                      ),
+                      if (selecionado)
+                        const Icon(
+                          Icons.check_circle,
+                          size: 18,
+                          color: Color(0xFFEF4444),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            })),
+
+            if (_motivoSelecionado == 'Outro') ...[
+              const SizedBox(height: 4),
+              TextFormField(
+                controller: _outroCtrl,
+                maxLines: 3,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Descreva o motivo da exclusão...',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 13,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFF2A2A3E),
+                  contentPadding: const EdgeInsets.all(12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF374151)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF374151)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFEF4444)),
+                  ),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 20),
+
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _confirmando
+                        ? null
+                        : () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: const BorderSide(color: Colors.white24),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text(
+                      'Cancelar',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _confirmando ? null : _confirmar,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFB91C1C),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _confirmando
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Confirmar Exclusão',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Tabela Desktop (tablet >= 600dp) ────────────────────────────────────────
 
 class _TabelaDesktop extends StatelessWidget {
   const _TabelaDesktop({
@@ -463,9 +913,7 @@ class _TabelaDesktop extends StatelessWidget {
   }
 }
 
-// ─── MODIFICAÇÃO 10: _ListaCards — layout de cards para mobile ───────────────
-// Substitui a tabela rígida em telas < 600dp. Cada aluno vira um card com
-// todas as informações dispostas verticalmente, sem larguras fixas.
+// ─── Lista de Cards (mobile < 600dp) ─────────────────────────────────────────
 
 class _ListaCards extends StatelessWidget {
   const _ListaCards({
@@ -516,9 +964,7 @@ class _ListaCards extends StatelessWidget {
   }
 }
 
-// ─── MODIFICAÇÃO 11: _AlunoCard ──────────────────────────────────────────────
-// Card responsivo que usa Expanded/Flexible ao invés de SizedBox com larguras
-// fixas. Nunca vai transbordar independente da largura da tela.
+// ─── Card de Aluno (mobile) ───────────────────────────────────────────────────
 
 class _AlunoCard extends StatelessWidget {
   const _AlunoCard({
@@ -535,12 +981,14 @@ class _AlunoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imagemUrl = aluno['imagem_url'] as String?;
+    final idade = aluno['idade'];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Número sequencial
           SizedBox(
             width: 24,
             child: Text(
@@ -553,13 +1001,32 @@ class _AlunoCard extends StatelessWidget {
             ),
           ),
 
-          // MODIFICAÇÃO 12: Expanded absorve todo o espaço disponível —
-          // o conteúdo nunca vai estourar lateralmente.
+          Container(
+            width: 44,
+            height: 44,
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: const Color(0xFFEFF6FF),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: imagemUrl != null && imagemUrl.isNotEmpty
+                ? Image.network(
+                    imagemUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.person,
+                      color: Color(0xFF2563EB),
+                      size: 24,
+                    ),
+                  )
+                : const Icon(Icons.person, color: Color(0xFF2563EB), size: 24),
+          ),
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Linha 1: nome + número do aluno
                 Row(
                   children: [
                     Expanded(
@@ -570,13 +1037,10 @@ class _AlunoCard extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF111827),
                         ),
-                        // MODIFICAÇÃO 13: overflow ellipsis evita quebra de
-                        // layout se o nome for muito longo.
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Badge com número do aluno
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
@@ -600,10 +1064,6 @@ class _AlunoCard extends StatelessWidget {
 
                 const SizedBox(height: 6),
 
-                // Linha 2: chips de setor e categoria
-                // MODIFICAÇÃO 14: Wrap com chips ao invés de SizedBox fixo.
-                // O Wrap quebra linha sozinho se não houver espaço, sem
-                // transbordar.
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
@@ -626,10 +1086,15 @@ class _AlunoCard extends StatelessWidget {
                         cor: const Color(0xFFECFDF5),
                         textoCor: const Color(0xFF065F46),
                       ),
+                    if (idade != null)
+                      _Chip(
+                        label: '$idade anos',
+                        cor: const Color(0xFFFFF7ED),
+                        textoCor: const Color(0xFF9A3412),
+                      ),
                   ],
                 ),
 
-                // Linha 3: telefone (opcional)
                 if (aluno['telefone'] != null &&
                     aluno['telefone'].toString().isNotEmpty) ...[
                   const SizedBox(height: 4),
@@ -657,9 +1122,6 @@ class _AlunoCard extends StatelessWidget {
 
           const SizedBox(width: 8),
 
-          // Botões de ação empilhados verticalmente para não espremê-los
-          // MODIFICAÇÃO 15: botões em Column ao invés de Row para economizar
-          // largura em telas estreitas. Cada botão tem 32×32 de toque mínimo.
           Column(
             children: [
               _BotaoAcao(
@@ -681,8 +1143,7 @@ class _AlunoCard extends StatelessWidget {
   }
 }
 
-// ─── MODIFICAÇÃO 16: _Chip — componente novo de badge/tag ────────────────────
-// Substitui texto plano de setor/categoria; melhora legibilidade em mobile.
+// ─── Chip de badge/tag ────────────────────────────────────────────────────────
 
 class _Chip extends StatelessWidget {
   const _Chip({required this.label, required this.cor, required this.textoCor});
@@ -711,84 +1172,6 @@ class _Chip extends StatelessWidget {
   }
 }
 
-// ─── Filtro Dropdown reutilizável ─────────────────────────────────────────────
-
-class _FiltroDropdown extends StatelessWidget {
-  const _FiltroDropdown({
-    required this.hint,
-    required this.valor,
-    required this.opcoes,
-    required this.onChanged,
-    required this.onLimpar,
-  });
-
-  final String hint;
-  final String? valor;
-  final List<String> opcoes;
-  final void Function(String?) onChanged;
-  final VoidCallback onLimpar;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 40,
-      // MODIFICAÇÃO 17: largura mínima garantida no dropdown para não ficar
-      // pequenininho em telas estreitas.
-      constraints: const BoxConstraints(minWidth: 110),
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: valor != null
-              ? const Color(0xFF2563EB)
-              : const Color(0xFFE5E7EB),
-        ),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: valor,
-          hint: Text(
-            hint,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-          ),
-          style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
-          dropdownColor: Colors.white,
-          icon: valor != null
-              ? GestureDetector(
-                  onTap: onLimpar,
-                  child: const Icon(
-                    Icons.close,
-                    size: 16,
-                    color: Color(0xFF6B7280),
-                  ),
-                )
-              : const Icon(
-                  Icons.keyboard_arrow_down,
-                  size: 18,
-                  color: Color(0xFF6B7280),
-                ),
-          onChanged: onChanged,
-          items: opcoes
-              .map(
-                (o) => DropdownMenuItem(
-                  value: o,
-                  child: Text(
-                    o,
-                    style: const TextStyle(
-                      color: Color(0xFF111827),
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
-        ),
-      ),
-    );
-  }
-}
-
 // ─── Cabeçalho da Tabela (tablet only) ───────────────────────────────────────
 
 class _TabelaHeader extends StatelessWidget {
@@ -802,12 +1185,13 @@ class _TabelaHeader extends StatelessWidget {
         children: const [
           SizedBox(width: 28, child: Text('#', style: _s)),
           SizedBox(width: 48, child: Text('Nº', style: _s)),
+          SizedBox(width: 44, child: Text('Foto', style: _s)),
           SizedBox(width: 130, child: Text('Nome', style: _s)),
+          SizedBox(width: 40, child: Text('Idade', style: _s)),
           SizedBox(width: 70, child: Text('Setor', style: _s)),
           SizedBox(width: 90, child: Text('Categoria', style: _s)),
           SizedBox(width: 100, child: Text('Nível', style: _s)),
           Expanded(child: Text('Telefone', style: _s)),
-          SizedBox(width: 36, child: Text('Inst.', style: _s)),
           SizedBox(width: 72),
         ],
       ),
@@ -838,8 +1222,10 @@ class _TabelaLinha extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imagemUrl = aluno['imagem_url'] as String?;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           SizedBox(
@@ -854,11 +1240,45 @@ class _TabelaLinha extends StatelessWidget {
             child: Text(aluno['numero_aluno']?.toString() ?? '', style: _c),
           ),
           SizedBox(
+            width: 44,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(6),
+                color: const Color(0xFFEFF6FF),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: imagemUrl != null && imagemUrl.isNotEmpty
+                  ? Image.network(
+                      imagemUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.person,
+                        color: Color(0xFF2563EB),
+                        size: 16,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.person,
+                      color: Color(0xFF2563EB),
+                      size: 16,
+                    ),
+            ),
+          ),
+          SizedBox(
             width: 130,
             child: Text(
               aluno['nome_completo']?.toString() ?? '',
               style: _c,
               overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          SizedBox(
+            width: 40,
+            child: Text(
+              aluno['idade'] != null ? '${aluno['idade']}' : '-',
+              style: _c,
             ),
           ),
           SizedBox(
@@ -887,10 +1307,6 @@ class _TabelaLinha extends StatelessWidget {
               style: _c,
               overflow: TextOverflow.ellipsis,
             ),
-          ),
-          SizedBox(
-            width: 36,
-            child: Text(aluno['id_instrumento']?.toString() ?? '-', style: _c),
           ),
           SizedBox(
             width: 72,
@@ -971,8 +1387,6 @@ class _RodapePaginacao extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // MODIFICAÇÃO 18: texto "Exibindo X de Y" encurtado para caber em telas
-    // estreitas; usamos Flexible para não transbordar no Row.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
@@ -997,8 +1411,6 @@ class _RodapePaginacao extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
               '$currentPage / $totalPaginas',
-              // MODIFICAÇÃO 19: exibe "página atual / total" para melhor
-              // orientação sem ocupar mais espaço.
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),
@@ -1037,13 +1449,14 @@ class _BotaoPagina extends StatelessWidget {
   }
 }
 
-// ─── Dialog: Adicionar / Editar Aluno ─────────────────────────────────────────
+// ─── Dialog de Adicionar / Editar Aluno ──────────────────────────────────────
 
 class _AlunoDialog extends StatefulWidget {
   const _AlunoDialog({this.aluno, required this.onSalvar});
 
   final Map<String, dynamic>? aluno;
-  final Future<void> Function(Map<String, dynamic>) onSalvar;
+  final Future<void> Function(Map<String, dynamic> dados, XFile? imagemFile)
+  onSalvar;
 
   @override
   State<_AlunoDialog> createState() => _AlunoDialogState();
@@ -1055,15 +1468,25 @@ class _AlunoDialogState extends State<_AlunoDialog> {
   late final TextEditingController _nomeCtrl;
   late final TextEditingController _telefoneCtrl;
   late final TextEditingController _instrumentoCtrl;
+  late final TextEditingController _idadeCtrl;
 
   String? _setorSelecionado;
   String? _categoriaSelecionada;
   String? _nivelSelecionado;
   bool _salvando = false;
 
-  final _setores = ['Danca', 'Escudo', 'Pavilhao', 'Linha', 'Baliza'];
-  final _categorias = ['Mentora', 'Kids', 'Avancar', 'Aprendiz', 'Ex-Aprendiz'];
-  final _niveis = ['Iniciante', 'Intermediario', 'Avancado'];
+  XFile? _imagemSelecionada;
+  final _picker = ImagePicker();
+
+  final _setores = ['Dança', 'Escudo', 'Pavilhão', 'Linha', 'Baliza'];
+  final _categorias = [
+    'Mentor(a)',
+    'Kids',
+    'Avançar',
+    'Aprendiz',
+    'Ex-Aprendiz',
+  ];
+  final _niveis = ['Iniciante', 'Intermediário', 'Avançado'];
 
   @override
   void initState() {
@@ -1081,6 +1504,7 @@ class _AlunoDialogState extends State<_AlunoDialog> {
     _instrumentoCtrl = TextEditingController(
       text: a?['id_instrumento']?.toString() ?? '',
     );
+    _idadeCtrl = TextEditingController(text: a?['idade']?.toString() ?? '');
     _setorSelecionado = a?['setor']?.toString();
     _categoriaSelecionada = a?['categoria_usuario']?.toString();
     _nivelSelecionado = a?['nivel']?.toString();
@@ -1092,7 +1516,120 @@ class _AlunoDialogState extends State<_AlunoDialog> {
     _nomeCtrl.dispose();
     _telefoneCtrl.dispose();
     _instrumentoCtrl.dispose();
+    _idadeCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _selecionarImagem() async {
+    final origem = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E2E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Selecionar foto',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2563EB).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_outlined,
+                    color: Color(0xFF2563EB),
+                  ),
+                ),
+                title: const Text(
+                  'Câmera',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+                contentPadding: EdgeInsets.zero,
+              ),
+              ListTile(
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2563EB).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.photo_library_outlined,
+                    color: Color(0xFF2563EB),
+                  ),
+                ),
+                title: const Text(
+                  'Galeria',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+                contentPadding: EdgeInsets.zero,
+              ),
+              if (_imagemSelecionada != null ||
+                  (widget.aluno?['imagem_url'] != null &&
+                      (widget.aluno!['imagem_url'] as String).isNotEmpty))
+                ListTile(
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB91C1C).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.delete_outline,
+                      color: Color(0xFFEF4444),
+                    ),
+                  ),
+                  title: const Text(
+                    'Remover foto',
+                    style: TextStyle(color: Color(0xFFEF4444)),
+                  ),
+                  onTap: () => Navigator.pop(ctx, null),
+                  contentPadding: EdgeInsets.zero,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (origem == null && _imagemSelecionada != null) {
+      setState(() => _imagemSelecionada = null);
+      return;
+    }
+    if (origem == null) return;
+
+    final imagem = await _picker.pickImage(
+      source: origem,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 85,
+    );
+
+    if (imagem != null && mounted) {
+      setState(() => _imagemSelecionada = imagem);
+    }
   }
 
   Future<void> _salvar() async {
@@ -1109,8 +1646,10 @@ class _AlunoDialogState extends State<_AlunoDialog> {
           'telefone': _telefoneCtrl.text.trim(),
         if (_instrumentoCtrl.text.trim().isNotEmpty)
           'id_instrumento': int.tryParse(_instrumentoCtrl.text.trim()),
+        if (_idadeCtrl.text.trim().isNotEmpty)
+          'idade': int.tryParse(_idadeCtrl.text.trim()),
       };
-      await widget.onSalvar(dados);
+      await widget.onSalvar(dados, _imagemSelecionada);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1128,18 +1667,14 @@ class _AlunoDialogState extends State<_AlunoDialog> {
   @override
   Widget build(BuildContext context) {
     final isEdicao = widget.aluno != null;
+    final imagemUrlExistente = widget.aluno?['imagem_url'] as String?;
 
-    // MODIFICAÇÃO 20: Dialog com insetPadding reduzido para mobile.
-    // Por padrão o Dialog tem 40px de margem lateral — reduzimos para 16px
-    // em telas estreitas, dando mais espaço ao formulário.
     return Dialog(
       backgroundColor: const Color(0xFF1E1E2E),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-        // MODIFICAÇÃO 21: padding interno reduzido de 24→20 para ganhar
-        // espaço vertical no formulário em telas pequenas.
         child: Form(
           key: _formKey,
           child: Column(
@@ -1150,8 +1685,6 @@ class _AlunoDialogState extends State<_AlunoDialog> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    // MODIFICAÇÃO 22: Expanded no título do dialog evita
-                    // overflow se o texto + ícone não couberem na linha.
                     child: Text(
                       isEdicao ? 'Editar Aluno' : 'Adicionar Novo Aluno',
                       style: const TextStyle(
@@ -1170,7 +1703,76 @@ class _AlunoDialogState extends State<_AlunoDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+
+              const SizedBox(height: 20),
+
+              Center(
+                child: GestureDetector(
+                  onTap: _selecionarImagem,
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: const Color(0xFF2A2A3E),
+                          border: Border.all(
+                            color: const Color(0xFF374151),
+                            width: 2,
+                          ),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: _imagemSelecionada != null
+                            ? Image.file(
+                                File(_imagemSelecionada!.path),
+                                fit: BoxFit.cover,
+                              )
+                            : (imagemUrlExistente != null &&
+                                  imagemUrlExistente.isNotEmpty)
+                            ? Image.network(
+                                imagemUrlExistente,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    const _FotoPlaceholder(),
+                              )
+                            : const _FotoPlaceholder(),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: const Color(0xFF1E1E2E),
+                              width: 2,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 8, bottom: 16),
+                  child: Text(
+                    'Toque para adicionar foto',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                  ),
+                ),
+              ),
 
               _CampoTexto(
                 label: 'Número do Aluno',
@@ -1183,12 +1785,30 @@ class _AlunoDialogState extends State<_AlunoDialog> {
                 },
               ),
               const SizedBox(height: 12),
+
               _CampoTexto(
                 label: 'Nome Completo',
                 controller: _nomeCtrl,
                 validator: (v) => v!.isEmpty ? 'Informe o nome' : null,
               ),
               const SizedBox(height: 12),
+
+              _CampoTexto(
+                label: 'Idade',
+                hint: 'Ex: 17',
+                controller: _idadeCtrl,
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  if (v != null && v.isNotEmpty) {
+                    final parsed = int.tryParse(v);
+                    if (parsed == null) return 'Digite apenas números';
+                    if (parsed < 1 || parsed > 120) return 'Idade inválida';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+
               _CampoDropdown(
                 label: 'Setor',
                 hint: 'Selecionar Setor',
@@ -1198,6 +1818,7 @@ class _AlunoDialogState extends State<_AlunoDialog> {
                 validator: (v) => v == null ? 'Selecione um setor' : null,
               ),
               const SizedBox(height: 12),
+
               _CampoDropdown(
                 label: 'Categoria do Usuário',
                 hint: 'Selecionar Categoria',
@@ -1207,6 +1828,7 @@ class _AlunoDialogState extends State<_AlunoDialog> {
                 validator: (v) => v == null ? 'Selecione uma categoria' : null,
               ),
               const SizedBox(height: 12),
+
               _CampoDropdown(
                 label: 'Nível de Conhecimento',
                 hint: 'Selecionar Nível',
@@ -1216,6 +1838,7 @@ class _AlunoDialogState extends State<_AlunoDialog> {
                 validator: (v) => v == null ? 'Selecione um nível' : null,
               ),
               const SizedBox(height: 12),
+
               _CampoTexto(
                 label: 'Telefone (Opcional)',
                 hint: '(99) 99999-9999',
@@ -1223,18 +1846,7 @@ class _AlunoDialogState extends State<_AlunoDialog> {
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 12),
-              _CampoTexto(
-                label: 'ID Instrumento (Opcional)',
-                hint: 'Ex: 1',
-                controller: _instrumentoCtrl,
-                keyboardType: TextInputType.number,
-                validator: (v) {
-                  if (v != null && v.isNotEmpty && int.tryParse(v) == null) {
-                    return 'Digite um número válido';
-                  }
-                  return null;
-                },
-              ),
+
               const SizedBox(height: 20),
 
               Row(
@@ -1296,7 +1908,25 @@ class _AlunoDialogState extends State<_AlunoDialog> {
   }
 }
 
-// ─── Widgets auxiliares ───────────────────────────────────────────────────────
+// ─── Placeholder do avatar quando sem foto ────────────────────────────────────
+
+class _FotoPlaceholder extends StatelessWidget {
+  const _FotoPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.person_outline, color: Color(0xFF4B5563), size: 32),
+        SizedBox(height: 4),
+        Text('Foto', style: TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
+      ],
+    );
+  }
+}
+
+// ─── Widgets auxiliares reutilizáveis ─────────────────────────────────────────
 
 class _CampoTexto extends StatelessWidget {
   const _CampoTexto({
