@@ -6,10 +6,15 @@ class InstrumentsRepository {
   Future<List<Map<String, dynamic>>> fetchInstrumentos() async {
     final data = await client
         .from('instrumentos')
-        .select('*')
-        .order('created_at', ascending: false);
+        .select(
+          'id_instrumento, numero_patrimonio, nome_instrumento, disponivel, propriedade_instrumento, leva_instrumento, observacoes, imagem_url',
+        )
+        .order('id_instrumento', ascending: true);
 
-    // supabase_flutter retorna List<dynamic>
-    return (data as List).cast<Map<String, dynamic>>();
+    final lista = List<Map<String, dynamic>>.from(
+      (data as List).map((item) => Map<String, dynamic>.from(item as Map)),
+    );
+
+    return lista;
   }
 }

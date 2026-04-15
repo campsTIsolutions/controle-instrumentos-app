@@ -1,61 +1,40 @@
-// import 'package:supabase_flutter/supabase_flutter.dart';
-// import '/models/instrumentos_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-// class InstrumentosRepository {
-//   // Aceder à instância do cliente Supabase
-//   final _supabase = Supabase.instance.client;
-//   final String _tabela = 'instrumentos'; // Nome da tabela no supa
+class InstrumentosRepository {
+  InstrumentosRepository({SupabaseClient? client})
+      : _supabase = client ?? Supabase.instance.client;
 
-//   // 1. READ - Listar todos os instrumentos
-//   Future<List<Instrumentos>> listarInstrumentos() async {
-//     try {
-//       final data = await _supabase
-//           .from(_tabela)
-//           .select()
-//           .order('nome_instrumento', ascending: true); // Organiza por nome
-      
-//       return (data as List).map((item) => Instrumentos.fromJson(item)).toList();
-//     } catch (e) {
-//       throw Exception('Erro ao listar instrumentos: $e');
-//     }
-//   }
+  final SupabaseClient _supabase;
+  static const String _tabela = 'instrumentos';
+  static const String _selectCampos =
+      'id_instrumento, numero_patrimonio, nome_instrumento, disponivel, propriedade_instrumento, leva_instrumento, observacoes, imagem_url, id_aluno';
 
-//   // 2. CREATE - Inserir um novo instrumento
-//   Future<void> criarInstrumento(Instrumentos instrumento) async {
-//     try {
-//       await _supabase.from(_tabela).insert(instrumento.toJson());
-//     } catch (e) {
-//       throw Exception('Erro ao criar instrumento: $e');
-//     }
-//   }
+  Future<List<Map<String, dynamic>>> listarInstrumentos() async {
+    final response = await _supabase
+        .from(_tabela)
+        .select(_selectCampos)
+        .order('id_instrumento', ascending: true);
 
-//   // 3. UPDATE - Atualizar dados de um instrumento existente
-//   Future<void> atualizarInstrumento(Instrumentos instrumento) async {
-//     try {
-//       await _supabase
-//           .from(_tabela)
-//           .update(instrumento.toJson())
-//           .eq('id_instrumento', instrumento.id_instrumento!); 
-//     } catch (e) {
-//       throw Exception('Erro ao atualizar instrumento: $e');
-//     }
-//   }
+    return List<Map<String, dynamic>>.from(
+      (response as List).map((item) => Map<String, dynamic>.from(item)),
+    );
+  }
 
-//   // 4. DELETE - Remover um instrumento da base de dados
-//   Future<void> eliminarInstrumento(int id) async {
-//     try {
-//       await _supabase
-//           .from(_tabela)
-//           .delete()
-//           .eq('id_instrumento', id);
-//     } catch (e) {
-//       throw Exception('Erro ao eliminar instrumento: $e');
-//     }
-//   }
+  Future<void> criarInstrumento(Map<String, dynamic> dados) async {
+    await _supabase.from(_tabela).insert(dados);
+  }
 
-//   Future<List<Instrumentos>> listarTodos() async {
-//     return listarInstrumentos();
-//   }
+  Future<void> atualizarInstrumento({
+    required dynamic idInstrumento,
+    required Map<String, dynamic> dados,
+  }) async {
+    await _supabase
+        .from(_tabela)
+        .update(dados)
+        .eq('id_instrumento', idInstrumento);
+  }
 
-//   Future<void> eliminar(int i) async {}
-// }
+  Future<void> eliminarInstrumento(int id) async {
+    await _supabase.from(_tabela).delete().eq('id_instrumento', id);
+  }
+}
