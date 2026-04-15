@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/instrumentos_model.dart';
+import '/models/instrumentos_model.dart';
 
 class InstrumentosRepository {
   // Aceder à instância do cliente Supabase
