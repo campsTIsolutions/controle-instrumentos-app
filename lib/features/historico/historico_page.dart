@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
 
 class HistoricoPage extends StatefulWidget {
   const HistoricoPage({super.key});
@@ -11,6 +12,7 @@ class HistoricoPage extends StatefulWidget {
 class _HistoricoPageState extends State<HistoricoPage> {
   final _supabase = Supabase.instance.client;
   final _searchController = TextEditingController();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   List<Map<String, dynamic>> _logs = [];
   List<Map<String, dynamic>> _logsFiltrados = [];
@@ -296,7 +298,37 @@ class _HistoricoPageState extends State<HistoricoPage> {
     final isTablet = screenWidth >= 600;
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: const Color(0xFFF2F3F5),
+      drawer: const AppDrawer(),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: SizedBox(
+            width: 24,
+            height: 24,
+            child: Image.asset("assets/menu-icon.png"),
+          ),
+          onPressed: () {
+            _scaffoldKey.currentState?.openDrawer();
+          },
+          style: IconButton.styleFrom(
+            backgroundColor: const Color.fromARGB(0, 255, 255, 255),
+          ),
+        ),
+        title: const Text(
+          "CAMPS",
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: Colors.grey),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(

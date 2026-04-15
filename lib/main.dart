@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'features/instrumentos/ui/instrumentos_page.dart';
+import 'features/alunos/alunos_page.dart';
+import 'features/chamada/tela_anual.dart';
+import 'features/historico/historico_page.dart';
 import 'features/login/login_page.dart';
+import 'features/instrumentos/ui/instrumentos_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +35,12 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
+      routes: {
+        '/instrumentos': (_) => const InstrumentosPage(),
+        '/alunos': (_) => const AlunosPage(),
+        '/chamada': (_) => const TelaAnual(),
+        '/historico': (_) => const HistoricoPage(),
+      },
       home: hasSession ? const InstrumentosPage() : const LoginPage(),
     );
   }

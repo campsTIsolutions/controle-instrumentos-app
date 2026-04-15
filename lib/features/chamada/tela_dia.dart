@@ -4,6 +4,7 @@
 // Tem botão "Salvar" que persiste as chamadas no Supabase.
 
 import 'package:flutter/material.dart';
+import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
 import 'models.dart';
 import 'widgets.dart';
 import 'supabase_service.dart';
@@ -28,6 +29,8 @@ class TelaDia extends StatefulWidget {
 }
 
 class _TelaDiaState extends State<TelaDia> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   bool _salvando = false;
   bool _temAlteracoes = false;
   bool _carregando = true;
@@ -177,6 +180,8 @@ class _TelaDiaState extends State<TelaDia> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: const AppDrawer(),
       backgroundColor: Colors.grey.shade100,
       appBar: _buildAppBar(),
       body: _carregando
@@ -214,14 +219,8 @@ class _TelaDiaState extends State<TelaDia> {
       elevation: 0,
       surfaceTintColor: Colors.transparent,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.black87),
-        onPressed: () {
-          if (_temAlteracoes) {
-            _mostrarDialogSairSemSalvar();
-          } else {
-            Navigator.pop(context);
-          }
-        },
+        icon: const Icon(Icons.menu, color: Colors.black87),
+        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
       ),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,6 +242,16 @@ class _TelaDiaState extends State<TelaDia> {
         ],
       ),
       actions: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () {
+            if (_temAlteracoes) {
+              _mostrarDialogSairSemSalvar();
+            } else {
+              Navigator.pop(context);
+            }
+          },
+        ),
         if (_temAlteracoes)
           Padding(
             padding: const EdgeInsets.only(right: 8),

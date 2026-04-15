@@ -1,6 +1,7 @@
 // lib/features/chamada/tela_mes.dart
 
 import 'package:flutter/material.dart';
+import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
 import 'models.dart';
 import 'supabase_service.dart';
 import 'tela_atestado.dart';
@@ -22,6 +23,8 @@ class TelaMes extends StatefulWidget {
 }
 
 class _TelaMesState extends State<TelaMes> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   List<DateTime> _dates = [];
   List<StudentRecord> _students = [];
   List<AulaRecord> _aulasDoMes = [];
@@ -212,14 +215,16 @@ class _TelaMesState extends State<TelaMes> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: const AppDrawer(),
       backgroundColor: const Color(0xFFF5F6FA),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.menu, color: Colors.black87),
+          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,6 +248,10 @@ class _TelaMesState extends State<TelaMes> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black87),
+            onPressed: () => Navigator.pop(context),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FloatingActionButton.small(

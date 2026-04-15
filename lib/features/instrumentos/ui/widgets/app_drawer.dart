@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:controle_instrumentos/features/alunos/alunos_page.dart';
-import 'package:controle_instrumentos/features/instrumentos/ui/instrumentos_page.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -27,16 +25,18 @@ class AppDrawer extends StatelessWidget {
               onTap: () {
                 final navigator = Navigator.of(context);
                 navigator.pop();
-                navigator.pushReplacement(
-                  MaterialPageRoute(builder: (_) => const InstrumentosPage()),
-                );
+                navigator.pushReplacementNamed('/instrumentos');
               },
             ),
 
             ListTile(
               leading: const Icon(Icons.article),
               title: const Text('Chamada'),
-              onTap: null,
+              onTap: () {
+                final navigator = Navigator.of(context);
+                navigator.pop();
+                navigator.pushReplacementNamed('/chamada');
+              },
             ),
 
             ListTile(
@@ -45,9 +45,17 @@ class AppDrawer extends StatelessWidget {
               onTap: () {
                 final navigator = Navigator.of(context);
                 navigator.pop();
-                navigator.pushReplacement(
-                  MaterialPageRoute(builder: (_) => const AlunosPage()),
-                );
+                navigator.pushReplacementNamed('/alunos');
+              },
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('Histórico'),
+              onTap: () {
+                final navigator = Navigator.of(context);
+                navigator.pop();
+                navigator.pushReplacementNamed('/historico');
               },
             ),
           ],

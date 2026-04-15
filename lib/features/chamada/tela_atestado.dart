@@ -7,6 +7,7 @@
 import 'dart:html' as html;
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
 import 'models.dart';
 
 class TelaAtestado extends StatefulWidget {
@@ -28,6 +29,7 @@ class TelaAtestado extends StatefulWidget {
 }
 
 class _TelaAtestadoState extends State<TelaAtestado> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   String? _arquivoNome;
   bool _carregando = false;
 
@@ -87,14 +89,16 @@ class _TelaAtestadoState extends State<TelaAtestado> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: const AppDrawer(),
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.menu, color: Colors.black87),
+          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,6 +121,12 @@ class _TelaAtestadoState extends State<TelaAtestado> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black87),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),

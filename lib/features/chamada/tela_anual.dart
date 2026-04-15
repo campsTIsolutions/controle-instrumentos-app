@@ -5,6 +5,7 @@
 // • Ao tocar em um mês, navega para TelaMes
 
 import 'package:flutter/material.dart';
+import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
 import 'supabase_service.dart';
 import 'tela_mes.dart';
 
@@ -16,6 +17,8 @@ class TelaAnual extends StatefulWidget {
 }
 
 class _TelaAnualState extends State<TelaAnual> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
   // ── Intervalo de anos disponíveis no dropdown ─────────────────────────────
   static const int _anoMin = 2026;
   static const int _anoMax = 2040;
@@ -94,6 +97,8 @@ class _TelaAnualState extends State<TelaAnual> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: const AppDrawer(),
       backgroundColor: Colors.grey.shade100,
       appBar: _buildAppBar(),
       body: _buildBody(),
@@ -107,7 +112,7 @@ class _TelaAnualState extends State<TelaAnual> {
       surfaceTintColor: Colors.transparent,
       leading: IconButton(
         icon: const Icon(Icons.menu, color: Colors.black87),
-        onPressed: () {},
+        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
       ),
       title: const Text(
         'CAMPS',
