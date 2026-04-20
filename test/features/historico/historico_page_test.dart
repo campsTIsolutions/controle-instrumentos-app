@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:controle_instrumentos/features/historico/historico_page.dart';
 import 'package:controle_instrumentos/features/historico/models/historico_log_record.dart';
 import 'package:controle_instrumentos/features/historico/repository/historico_repository.dart';
+import 'package:controle_instrumentos/features/historico/widgets/historico_filters/filtro_chip_group.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -141,6 +142,143 @@ void main() {
 
     expect(find.text('Maria Teste'), findsOneWidget);
     expect(find.text('João Teste'), findsNothing);
+  });
+
+  testWidgets('motivo filter keeps only matching logs', (tester) async {
+    final repository = _FakeHistoricoRepository([
+      const HistoricoLogRecord(
+        idLog: 1,
+        idAluno: 1,
+        numeroAluno: '01',
+        nomeCompleto: 'Tempo Registro',
+        setor: 'Linha',
+        categoriaUsuario: 'Kids',
+        nivel: 'Iniciante',
+        telefone: '',
+        imagemUrl: null,
+        idade: null,
+        motivoExclusao: 'Falta de Tempo',
+        dataExclusao: '2026-04-20T10:00:00Z',
+      ),
+      const HistoricoLogRecord(
+        idLog: 2,
+        idAluno: 2,
+        numeroAluno: '02',
+        nomeCompleto: 'Disciplina Registro',
+        setor: 'Escudo',
+        categoriaUsuario: 'Aprendiz',
+        nivel: 'Intermediário',
+        telefone: '',
+        imagemUrl: null,
+        idade: null,
+        motivoExclusao: 'Falta de Disciplina',
+        dataExclusao: '2026-04-19T10:00:00Z',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _buildTestable(HistoricoPage(repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.widgetWithText(CheckboxChipWidget, 'Falta de Disciplina').first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Disciplina Registro'), findsOneWidget);
+    expect(find.text('Tempo Registro'), findsNothing);
+  });
+
+  testWidgets('setor filter keeps only matching logs', (tester) async {
+    final repository = _FakeHistoricoRepository([
+      const HistoricoLogRecord(
+        idLog: 1,
+        idAluno: 1,
+        numeroAluno: '01',
+        nomeCompleto: 'Log Escudo',
+        setor: 'Escudo',
+        categoriaUsuario: 'Kids',
+        nivel: 'Iniciante',
+        telefone: '',
+        imagemUrl: null,
+        idade: null,
+        motivoExclusao: 'Falta de Tempo',
+        dataExclusao: '2026-04-20T10:00:00Z',
+      ),
+      const HistoricoLogRecord(
+        idLog: 2,
+        idAluno: 2,
+        numeroAluno: '02',
+        nomeCompleto: 'Log Baliza',
+        setor: 'Baliza',
+        categoriaUsuario: 'Aprendiz',
+        nivel: 'Intermediário',
+        telefone: '',
+        imagemUrl: null,
+        idade: null,
+        motivoExclusao: 'Falta de Disciplina',
+        dataExclusao: '2026-04-19T10:00:00Z',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _buildTestable(HistoricoPage(repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    final balizaChip = find.widgetWithText(CheckboxChipWidget, 'Baliza').first;
+    await tester.ensureVisible(balizaChip);
+    await tester.tap(balizaChip);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Log Baliza'), findsOneWidget);
+    expect(find.text('Log Escudo'), findsNothing);
+  });
+
+  testWidgets('A-Z toggle sorts visible logs alphabetically', (tester) async {
+    final repository = _FakeHistoricoRepository([
+      const HistoricoLogRecord(
+        idLog: 1,
+        idAluno: 1,
+        numeroAluno: '01',
+        nomeCompleto: 'Zeta Nome',
+        setor: 'Escudo',
+        categoriaUsuario: 'Kids',
+        nivel: 'Iniciante',
+        telefone: '',
+        imagemUrl: null,
+        idade: null,
+        motivoExclusao: 'Falta de Tempo',
+        dataExclusao: '2026-04-20T10:00:00Z',
+      ),
+      const HistoricoLogRecord(
+        idLog: 2,
+        idAluno: 2,
+        numeroAluno: '02',
+        nomeCompleto: 'Alfa Nome',
+        setor: 'Baliza',
+        categoriaUsuario: 'Aprendiz',
+        nivel: 'Intermediário',
+        telefone: '',
+        imagemUrl: null,
+        idade: null,
+        motivoExclusao: 'Falta de Disciplina',
+        dataExclusao: '2026-04-19T10:00:00Z',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _buildTestable(HistoricoPage(repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('A-Z').first);
+    await tester.pumpAndSettle();
+
+    final alfaY = tester.getTopLeft(find.text('Alfa Nome').first).dy;
+    final zetaY = tester.getTopLeft(find.text('Zeta Nome').first).dy;
+    expect(alfaY, lessThan(zetaY));
   });
 
   testWidgets('delete flow confirms and calls repository delete', (

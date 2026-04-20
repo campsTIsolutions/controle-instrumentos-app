@@ -221,6 +221,61 @@ void main() {
     expect(repository.calls.map((c) => c.page), containsAll([1, 2]));
   });
 
+  testWidgets('category filter sends selected category to repository', (
+    tester,
+  ) async {
+    final repository = _FakeAlunosRepository(
+      listarHandler: (_) async =>
+          const AlunosPageResult(items: [], total: 0, page: 1),
+    );
+
+    await tester.pumpWidget(_buildTestable(AlunosPage(repository: repository)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Kids').first);
+    await tester.pumpAndSettle();
+
+    expect(repository.calls.last.categorias, contains('Kids'));
+    expect(repository.calls.last.page, 1);
+  });
+
+  testWidgets('setor filter sends selected setor to repository', (
+    tester,
+  ) async {
+    final repository = _FakeAlunosRepository(
+      listarHandler: (_) async =>
+          const AlunosPageResult(items: [], total: 0, page: 1),
+    );
+
+    await tester.pumpWidget(_buildTestable(AlunosPage(repository: repository)));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Baliza').first);
+    await tester.tap(find.text('Baliza').first);
+    await tester.pumpAndSettle();
+
+    expect(repository.calls.last.setores, contains('Baliza'));
+    expect(repository.calls.last.page, 1);
+  });
+
+  testWidgets('A-Z toggle sends ordenarAlfabetico=true to repository', (
+    tester,
+  ) async {
+    final repository = _FakeAlunosRepository(
+      listarHandler: (_) async =>
+          const AlunosPageResult(items: [], total: 0, page: 1),
+    );
+
+    await tester.pumpWidget(_buildTestable(AlunosPage(repository: repository)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(Checkbox).first);
+    await tester.pumpAndSettle();
+
+    expect(repository.calls.last.ordenarAlfabetico, isTrue);
+    expect(repository.calls.last.page, 1);
+  });
+
   testWidgets('shows snackbar when initial load fails', (tester) async {
     final repository = _FakeAlunosRepository(
       listarHandler: (_) async {
