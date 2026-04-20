@@ -9,15 +9,9 @@ import 'package:flutter_test/flutter_test.dart';
 class _FakeAlunosRepository implements AlunosRepositoryContract {
   _FakeAlunosRepository({required this.listarHandler});
 
-  final Future<AlunosPageResult> Function({
-    required int page,
-    required int itemsPerPage,
-    required String query,
-    required List<String> categorias,
-    required List<String> setores,
-    required bool ordenarAlfabetico,
-  })
-  listarHandler;
+  final List<_ListarCall> calls = [];
+
+  final Future<AlunosPageResult> Function(_ListarCall call) listarHandler;
 
   @override
   Future<AlunosPageResult> listarAlunosPaginados({
@@ -28,7 +22,7 @@ class _FakeAlunosRepository implements AlunosRepositoryContract {
     List<String> setores = const [],
     bool ordenarAlfabetico = false,
   }) {
-    return listarHandler(
+    final call = _ListarCall(
       page: page,
       itemsPerPage: itemsPerPage,
       query: query,
@@ -36,6 +30,8 @@ class _FakeAlunosRepository implements AlunosRepositoryContract {
       setores: setores,
       ordenarAlfabetico: ordenarAlfabetico,
     );
+    calls.add(call);
+    return listarHandler(call);
   }
 
   @override
@@ -59,6 +55,24 @@ class _FakeAlunosRepository implements AlunosRepositoryContract {
   }
 }
 
+class _ListarCall {
+  const _ListarCall({
+    required this.page,
+    required this.itemsPerPage,
+    required this.query,
+    required this.categorias,
+    required this.setores,
+    required this.ordenarAlfabetico,
+  });
+
+  final int page;
+  final int itemsPerPage;
+  final String query;
+  final List<String> categorias;
+  final List<String> setores;
+  final bool ordenarAlfabetico;
+}
+
 Widget _buildTestable(Widget child) {
   return MaterialApp(
     routes: {
@@ -75,15 +89,7 @@ void main() {
   testWidgets('shows loading before first response resolves', (tester) async {
     final completer = Completer<AlunosPageResult>();
     final repository = _FakeAlunosRepository(
-      listarHandler:
-          ({
-            required page,
-            required itemsPerPage,
-            required query,
-            required categorias,
-            required setores,
-            required ordenarAlfabetico,
-          }) => completer.future,
+      listarHandler: (_) => completer.future,
     );
 
     await tester.pumpWidget(_buildTestable(AlunosPage(repository: repository)));
@@ -100,15 +106,8 @@ void main() {
     tester,
   ) async {
     final repository = _FakeAlunosRepository(
-      listarHandler:
-          ({
-            required page,
-            required itemsPerPage,
-            required query,
-            required categorias,
-            required setores,
-            required ordenarAlfabetico,
-          }) async => const AlunosPageResult(items: [], total: 0, page: 1),
+      listarHandler: (_) async =>
+          const AlunosPageResult(items: [], total: 0, page: 1),
     );
 
     await tester.pumpWidget(_buildTestable(AlunosPage(repository: repository)));
@@ -119,31 +118,23 @@ void main() {
 
   testWidgets('shows list item when repository returns data', (tester) async {
     final repository = _FakeAlunosRepository(
-      listarHandler:
-          ({
-            required page,
-            required itemsPerPage,
-            required query,
-            required categorias,
-            required setores,
-            required ordenarAlfabetico,
-          }) async => const AlunosPageResult(
-            items: [
-              AlunoRecord(
-                idAluno: 1,
-                numeroAluno: '101',
-                nomeCompleto: 'Maria Teste',
-                setor: 'Dança',
-                categoriaUsuario: 'Aprendiz',
-                nivel: 'Iniciante',
-                telefone: '11999999999',
-                imagemUrl: null,
-                idade: 15,
-              ),
-            ],
-            total: 1,
-            page: 1,
+      listarHandler: (_) async => const AlunosPageResult(
+        items: [
+          AlunoRecord(
+            idAluno: 1,
+            numeroAluno: '101',
+            nomeCompleto: 'Maria Teste',
+            setor: 'Dança',
+            categoriaUsuario: 'Aprendiz',
+            nivel: 'Iniciante',
+            telefone: '11999999999',
+            imagemUrl: null,
+            idade: 15,
           ),
+        ],
+        total: 1,
+        page: 1,
+      ),
     );
 
     await tester.pumpWidget(_buildTestable(AlunosPage(repository: repository)));
@@ -153,19 +144,88 @@ void main() {
     expect(find.text('1 alunos'), findsOneWidget);
   });
 
+  testWidgets('search triggers repository call with debounced query', (
+    tester,
+  ) async {
+    final repository = _FakeAlunosRepository(
+      listarHandler: (_) async =>
+          const AlunosPageResult(items: [], total: 0, page: 1),
+    );
+
+    await tester.pumpWidget(_buildTestable(AlunosPage(repository: repository)));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, 'maria');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    expect(repository.calls.length, greaterThanOrEqualTo(2));
+    expect(repository.calls.last.query, 'maria');
+    expect(repository.calls.last.page, 1);
+  });
+
+  testWidgets('pagination next page fetches and renders new results', (
+    tester,
+  ) async {
+    final repository = _FakeAlunosRepository(
+      listarHandler: (call) async {
+        if (call.page == 1) {
+          return const AlunosPageResult(
+            items: [
+              AlunoRecord(
+                idAluno: 1,
+                numeroAluno: '1',
+                nomeCompleto: 'Aluno Página 1',
+                setor: 'Linha',
+                categoriaUsuario: 'Kids',
+                nivel: 'Iniciante',
+                telefone: '',
+                imagemUrl: null,
+                idade: null,
+              ),
+            ],
+            total: 11,
+            page: 1,
+          );
+        }
+
+        return const AlunosPageResult(
+          items: [
+            AlunoRecord(
+              idAluno: 2,
+              numeroAluno: '2',
+              nomeCompleto: 'Aluno Página 2',
+              setor: 'Escudo',
+              categoriaUsuario: 'Aprendiz',
+              nivel: 'Intermediário',
+              telefone: '',
+              imagemUrl: null,
+              idade: null,
+            ),
+          ],
+          total: 11,
+          page: 2,
+        );
+      },
+    );
+
+    await tester.pumpWidget(_buildTestable(AlunosPage(repository: repository)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Aluno Página 1'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.chevron_right).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Aluno Página 2'), findsOneWidget);
+    expect(repository.calls.map((c) => c.page), containsAll([1, 2]));
+  });
+
   testWidgets('shows snackbar when initial load fails', (tester) async {
     final repository = _FakeAlunosRepository(
-      listarHandler:
-          ({
-            required page,
-            required itemsPerPage,
-            required query,
-            required categorias,
-            required setores,
-            required ordenarAlfabetico,
-          }) async {
-            throw Exception('falha-repo-alunos');
-          },
+      listarHandler: (_) async {
+        throw Exception('falha-repo-alunos');
+      },
     );
 
     await tester.pumpWidget(_buildTestable(AlunosPage(repository: repository)));

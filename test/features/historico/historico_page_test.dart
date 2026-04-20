@@ -7,15 +7,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _FakeHistoricoRepository implements HistoricoRepositoryContract {
-  _FakeHistoricoRepository({required this.listarHandler});
+  _FakeHistoricoRepository(this.logs);
 
-  final Future<List<HistoricoLogRecord>> Function() listarHandler;
-
-  @override
-  Future<void> deletarLog(int idLog) async {}
+  final List<HistoricoLogRecord> logs;
+  final List<int> deletedIds = [];
 
   @override
-  Future<List<HistoricoLogRecord>> listarLogs() => listarHandler();
+  Future<void> deletarLog(int idLog) async {
+    deletedIds.add(idLog);
+    logs.removeWhere((l) => l.idLog == idLog);
+  }
+
+  @override
+  Future<List<HistoricoLogRecord>> listarLogs() async {
+    return List<HistoricoLogRecord>.from(logs);
+  }
 }
 
 Widget _buildTestable(Widget child) {
@@ -35,9 +41,7 @@ void main() {
     tester,
   ) async {
     final completer = Completer<List<HistoricoLogRecord>>();
-    final repository = _FakeHistoricoRepository(
-      listarHandler: () => completer.future,
-    );
+    final repository = _CompleterHistoricoRepository(() => completer.future);
 
     await tester.pumpWidget(
       _buildTestable(HistoricoPage(repository: repository)),
@@ -54,9 +58,7 @@ void main() {
   testWidgets('shows empty state when repository returns no logs', (
     tester,
   ) async {
-    final repository = _FakeHistoricoRepository(
-      listarHandler: () async => const [],
-    );
+    final repository = _FakeHistoricoRepository([]);
 
     await tester.pumpWidget(
       _buildTestable(HistoricoPage(repository: repository)),
@@ -67,24 +69,22 @@ void main() {
   });
 
   testWidgets('shows log entry when repository returns data', (tester) async {
-    final repository = _FakeHistoricoRepository(
-      listarHandler: () async => const [
-        HistoricoLogRecord(
-          idLog: 1,
-          idAluno: 7,
-          numeroAluno: '77',
-          nomeCompleto: 'Aluno Histórico',
-          setor: 'Escudo',
-          categoriaUsuario: 'Kids',
-          nivel: 'Intermediário',
-          telefone: '11911111111',
-          imagemUrl: null,
-          idade: 14,
-          motivoExclusao: 'Falta de Tempo',
-          dataExclusao: '2026-04-20T10:00:00Z',
-        ),
-      ],
-    );
+    final repository = _FakeHistoricoRepository([
+      const HistoricoLogRecord(
+        idLog: 1,
+        idAluno: 7,
+        numeroAluno: '77',
+        nomeCompleto: 'Aluno Histórico',
+        setor: 'Escudo',
+        categoriaUsuario: 'Kids',
+        nivel: 'Intermediário',
+        telefone: '11911111111',
+        imagemUrl: null,
+        idade: 14,
+        motivoExclusao: 'Falta de Tempo',
+        dataExclusao: '2026-04-20T10:00:00Z',
+      ),
+    ]);
 
     await tester.pumpWidget(
       _buildTestable(HistoricoPage(repository: repository)),
@@ -95,12 +95,101 @@ void main() {
     expect(find.text('1 registro'), findsWidgets);
   });
 
-  testWidgets('shows snackbar when initial logs load fails', (tester) async {
-    final repository = _FakeHistoricoRepository(
-      listarHandler: () async {
-        throw Exception('falha-repo-historico');
-      },
+  testWidgets('search filters visible logs locally', (tester) async {
+    final repository = _FakeHistoricoRepository([
+      const HistoricoLogRecord(
+        idLog: 1,
+        idAluno: 1,
+        numeroAluno: '01',
+        nomeCompleto: 'João Teste',
+        setor: 'Linha',
+        categoriaUsuario: 'Kids',
+        nivel: 'Iniciante',
+        telefone: '',
+        imagemUrl: null,
+        idade: null,
+        motivoExclusao: 'Falta de Tempo',
+        dataExclusao: '2026-04-20T10:00:00Z',
+      ),
+      const HistoricoLogRecord(
+        idLog: 2,
+        idAluno: 2,
+        numeroAluno: '02',
+        nomeCompleto: 'Maria Teste',
+        setor: 'Escudo',
+        categoriaUsuario: 'Aprendiz',
+        nivel: 'Intermediário',
+        telefone: '',
+        imagemUrl: null,
+        idade: null,
+        motivoExclusao: 'Falta de Disciplina',
+        dataExclusao: '2026-04-19T10:00:00Z',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _buildTestable(HistoricoPage(repository: repository)),
     );
+    await tester.pumpAndSettle();
+
+    expect(find.text('João Teste'), findsOneWidget);
+    expect(find.text('Maria Teste'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, 'maria');
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Maria Teste'), findsOneWidget);
+    expect(find.text('João Teste'), findsNothing);
+  });
+
+  testWidgets('delete flow confirms and calls repository delete', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 2200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repository = _FakeHistoricoRepository([
+      const HistoricoLogRecord(
+        idLog: 10,
+        idAluno: 1,
+        numeroAluno: '01',
+        nomeCompleto: 'Registro Removível',
+        setor: 'Linha',
+        categoriaUsuario: 'Kids',
+        nivel: 'Iniciante',
+        telefone: '',
+        imagemUrl: null,
+        idade: null,
+        motivoExclusao: 'Falta de Interesse',
+        dataExclusao: '2026-04-20T10:00:00Z',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      _buildTestable(HistoricoPage(repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Registro Removível'), findsOneWidget);
+
+    await tester.ensureVisible(find.byIcon(Icons.delete_outline).first);
+    await tester.tap(find.byIcon(Icons.delete_outline).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Remover Registro'), findsOneWidget);
+    await tester.tap(find.text('Remover').last);
+    await tester.pumpAndSettle();
+
+    expect(repository.deletedIds, [10]);
+    expect(find.text('Registro Removível'), findsNothing);
+  });
+
+  testWidgets('shows snackbar when initial logs load fails', (tester) async {
+    final repository = _CompleterHistoricoRepository(() async {
+      throw Exception('falha-repo-historico');
+    });
 
     await tester.pumpWidget(
       _buildTestable(HistoricoPage(repository: repository)),
@@ -109,4 +198,16 @@ void main() {
 
     expect(find.textContaining('Erro ao carregar histórico:'), findsOneWidget);
   });
+}
+
+class _CompleterHistoricoRepository implements HistoricoRepositoryContract {
+  _CompleterHistoricoRepository(this.listarHandler);
+
+  final Future<List<HistoricoLogRecord>> Function() listarHandler;
+
+  @override
+  Future<void> deletarLog(int idLog) async {}
+
+  @override
+  Future<List<HistoricoLogRecord>> listarLogs() => listarHandler();
 }
