@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class InstrumentosRepository {
   InstrumentosRepository({SupabaseClient? client})
-      : _supabase = client ?? Supabase.instance.client;
+    : _supabase = client ?? Supabase.instance.client;
 
   final SupabaseClient _supabase;
   static const String _tabela = 'instrumentos';
@@ -10,14 +10,21 @@ class InstrumentosRepository {
       'id_instrumento, numero_patrimonio, nome_instrumento, disponivel, propriedade_instrumento, leva_instrumento, observacoes, imagem_url, id_aluno';
 
   Future<List<Map<String, dynamic>>> listarInstrumentos() async {
-    final response = await _supabase
+    final dynamic response = await _supabase
         .from(_tabela)
         .select(_selectCampos)
         .order('id_instrumento', ascending: true);
 
-    return List<Map<String, dynamic>>.from(
-      (response as List).map((item) => Map<String, dynamic>.from(item)),
-    );
+    final rawData = response is PostgrestResponse ? response.data : response;
+    if (rawData is! List) {
+      throw StateError(
+        'Resposta inesperada ao listar instrumentos: ${rawData.runtimeType}',
+      );
+    }
+
+    return rawData
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList(growable: false);
   }
 
   Future<void> criarInstrumento(Map<String, dynamic> dados) async {

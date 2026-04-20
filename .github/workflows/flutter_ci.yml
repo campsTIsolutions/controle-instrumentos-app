@@ -29,5 +29,14 @@ jobs:
       - name: Static analysis
         run: flutter analyze
 
-      - name: Run tests
-        run: flutter test
+      - name: Run tests with coverage
+        run: flutter test --coverage
+
+      - name: Validate coverage threshold
+        run: ./scripts/check_coverage.sh coverage/lcov.info 40
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov-report
+          path: coverage/lcov.info

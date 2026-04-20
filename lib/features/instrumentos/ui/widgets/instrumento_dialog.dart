@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:controle_instrumentos/core/config/storage_paths.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -36,6 +39,7 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
   String? _propriedadeSelecionada;
   String? _imagemPath;
   String? _imagemNome;
+  Uint8List? _imagemBytes;
   int? _alunoSelecionadoId;
   List<Map<String, dynamic>> _alunos = [];
 
@@ -91,6 +95,7 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
     final resultado = await FilePicker.platform.pickFiles(
       type: FileType.image,
       allowMultiple: false,
+      withData: true,
     );
 
     if (resultado == null) return;
@@ -99,6 +104,7 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
     setState(() {
       _imagemPath = arquivo.path;
       _imagemNome = arquivo.name;
+      _imagemBytes = arquivo.bytes;
     });
   }
 
@@ -111,8 +117,12 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
 
       if (!mounted) return;
 
+      final dynamic rawResponse = response;
+      final rawData = rawResponse is PostgrestResponse
+          ? rawResponse.data
+          : rawResponse;
       final alunos = List<Map<String, dynamic>>.from(
-        (response as List).map((item) => Map<String, dynamic>.from(item)),
+        (rawData as List).map((item) => Map<String, dynamic>.from(item as Map)),
       );
 
       setState(() {
@@ -137,6 +147,26 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
     setState(() => _salvando = true);
 
     try {
+      var imagemUrl = _imagemPath;
+
+      if (_imagemBytes != null && _imagemNome != null) {
+        final safeFileName = _imagemNome!
+            .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_')
+            .replaceAll(' ', '_');
+        final objectPath = StoragePaths.instrumentoObjectPath(
+          safeFileName,
+          DateTime.now().millisecondsSinceEpoch,
+        );
+
+        await _supabase.storage
+            .from(StoragePaths.bucket)
+            .uploadBinary(objectPath, _imagemBytes!);
+
+        imagemUrl = _supabase.storage
+            .from(StoragePaths.bucket)
+            .getPublicUrl(objectPath);
+      }
+
       final dados = <String, dynamic>{
         'numero_patrimonio': _patrimonioCtrl.text.trim(),
         'nome_instrumento': _nomeCtrl.text.trim(),
@@ -146,9 +176,9 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
         'observacoes': _observacoesCtrl.text.trim().isEmpty
             ? null
             : _observacoesCtrl.text.trim(),
-        'imagem_url': (_imagemPath == null || _imagemPath!.trim().isEmpty)
+        'imagem_url': (imagemUrl == null || imagemUrl.trim().isEmpty)
             ? null
-            : _imagemPath!.trim(),
+            : imagemUrl.trim(),
         'disponivel': _disponivel,
       };
 
@@ -274,6 +304,7 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
                   setState(() {
                     _imagemPath = null;
                     _imagemNome = null;
+                    _imagemBytes = null;
                   });
                 },
               ),

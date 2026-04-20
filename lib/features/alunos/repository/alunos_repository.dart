@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:controle_instrumentos/core/config/storage_paths.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/aluno_record.dart';
@@ -74,9 +75,8 @@ class AlunosRepository implements AlunosRepositoryContract {
         ? dataRequest.order('nome_completo', ascending: true)
         : dataRequest.order('id_aluno', ascending: true);
 
-    final rows = List<Map<String, dynamic>>.from(
-      await dataRequest.range(from, to) as List,
-    );
+    final response = await dataRequest.range(from, to);
+    final rows = _extractRows(response);
     final items = rows.map(AlunoRecord.fromMap).toList(growable: false);
     final total = await _countAlunos(
       trimmedQuery: trimmedQuery,
@@ -99,7 +99,20 @@ class AlunosRepository implements AlunosRepositoryContract {
       categorias: categorias,
       setores: setores,
     );
-    return await countRequest.count(CountOption.exact);
+    final response = await countRequest.count(CountOption.exact);
+
+    if (response is int) return response;
+    if (response is num) return response.toInt();
+
+    if (response is PostgrestResponse) {
+      return response.count;
+    }
+
+    if (response is List) return response.length;
+
+    throw StateError(
+      'Resposta inesperada ao contar alunos: ${response.runtimeType}',
+    );
   }
 
   dynamic _applyFilters({
@@ -127,6 +140,22 @@ class AlunosRepository implements AlunosRepositoryContract {
     return next;
   }
 
+  List<Map<String, dynamic>> _extractRows(dynamic response) {
+    final dynamic rawData = response is PostgrestResponse
+        ? response.data
+        : response;
+
+    if (rawData is! List) {
+      throw StateError(
+        'Resposta inesperada ao listar alunos: ${rawData.runtimeType}',
+      );
+    }
+
+    return rawData
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList(growable: false);
+  }
+
   @override
   Future<void> salvarAluno({
     required Map<String, dynamic> dados,
@@ -149,13 +178,16 @@ class AlunosRepository implements AlunosRepositoryContract {
         .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_')
         .replaceAll(' ', '_');
 
-    final objectPath = '${DateTime.now().millisecondsSinceEpoch}_$safeFileName';
+    final objectPath = StoragePaths.alunoObjectPath(
+      safeFileName,
+      DateTime.now().millisecondsSinceEpoch,
+    );
 
     await _supabase.storage
-        .from('alunos-fotos')
+        .from(StoragePaths.bucket)
         .uploadBinary(objectPath, Uint8List.fromList(bytes));
 
-    return _supabase.storage.from('alunos-fotos').getPublicUrl(objectPath);
+    return _supabase.storage.from(StoragePaths.bucket).getPublicUrl(objectPath);
   }
 
   @override

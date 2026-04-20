@@ -15,7 +15,7 @@ class HistoricoRepository implements HistoricoRepositoryContract {
 
   @override
   Future<List<HistoricoLogRecord>> listarLogs() async {
-    final response = await _supabase
+    final dynamic response = await _supabase
         .from('logs')
         .select(
           'id_log, id_aluno, numero_aluno, nome_completo, setor, '
@@ -24,7 +24,14 @@ class HistoricoRepository implements HistoricoRepositoryContract {
         )
         .order('data_exclusao', ascending: false);
 
-    return (response as List)
+    final rawData = response is PostgrestResponse ? response.data : response;
+    if (rawData is! List) {
+      throw StateError(
+        'Resposta inesperada ao listar historico: ${rawData.runtimeType}',
+      );
+    }
+
+    return rawData
         .map(
           (item) => HistoricoLogRecord.fromMap(
             Map<String, dynamic>.from(item as Map),

@@ -92,14 +92,23 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
 
     try {
       final response = await _repository.listarInstrumentos();
-      final alunosResponse = await _supabase
+      final dynamic alunosResponse = await _supabase
           .from('alunos')
           .select('id_aluno, nome_completo');
 
       if (!mounted) return;
 
+      final alunosRawData = alunosResponse is PostgrestResponse
+          ? alunosResponse.data
+          : alunosResponse;
+      if (alunosRawData is! List) {
+        throw StateError(
+          'Resposta inesperada ao listar alunos vinculados: ${alunosRawData.runtimeType}',
+        );
+      }
+
       final nomesAlunosPorId = <int, String>{};
-      for (final item in alunosResponse as List) {
+      for (final item in alunosRawData) {
         final aluno = Map<String, dynamic>.from(item as Map);
         final id = aluno['id_aluno'];
         final nome = aluno['nome_completo'];
