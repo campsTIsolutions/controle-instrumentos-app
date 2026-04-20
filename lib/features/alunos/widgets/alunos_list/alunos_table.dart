@@ -1,3 +1,4 @@
+import 'package:controle_instrumentos/features/alunos/models/aluno_record.dart';
 import 'package:controle_instrumentos/shared/widgets/person_avatar.dart';
 import 'package:controle_instrumentos/shared/widgets/table_action_button.dart';
 import 'package:controle_instrumentos/shared/widgets/top_rounded_panel.dart';
@@ -13,11 +14,11 @@ class AlunosTable extends StatelessWidget {
     required this.onDeletar,
   });
 
-  final List<Map<String, dynamic>> alunos;
+  final List<AlunoRecord> alunos;
   final int currentPage;
   final int itensPorPagina;
-  final void Function(Map<String, dynamic>) onEditar;
-  final void Function(Map<String, dynamic>) onDeletar;
+  final void Function(AlunoRecord) onEditar;
+  final void Function(AlunoRecord) onDeletar;
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +89,7 @@ class _TabelaLinha extends StatelessWidget {
   });
 
   final int numero;
-  final Map<String, dynamic> aluno;
+  final AlunoRecord aluno;
   final VoidCallback onEditar;
   final VoidCallback onDeletar;
 
@@ -96,8 +97,6 @@ class _TabelaLinha extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imagemUrl = aluno['imagem_url'] as String?;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
@@ -109,14 +108,11 @@ class _TabelaLinha extends StatelessWidget {
               style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
             ),
           ),
-          SizedBox(
-            width: 48,
-            child: Text(aluno['numero_aluno']?.toString() ?? '', style: _c),
-          ),
+          SizedBox(width: 48, child: Text(aluno.numeroAluno, style: _c)),
           SizedBox(
             width: 44,
             child: PersonAvatar(
-              imageUrl: imagemUrl,
+              imageUrl: aluno.imagemUrl,
               size: 32,
               radius: 6,
               backgroundColor: const Color(0xFFEFF6FF),
@@ -126,42 +122,24 @@ class _TabelaLinha extends StatelessWidget {
           ),
           SizedBox(
             width: 130,
-            child: Text(
-              aluno['nome_completo']?.toString() ?? '',
-              style: _c,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Text(aluno.nomeCompleto, style: _c, overflow: TextOverflow.ellipsis),
           ),
           SizedBox(
             width: 40,
-            child: Text(
-              aluno['idade'] != null ? '${aluno['idade']}' : '-',
-              style: _c,
-            ),
+            child: Text(aluno.idade != null ? '${aluno.idade}' : '-', style: _c),
           ),
-          SizedBox(
-            width: 70,
-            child: Text(aluno['setor']?.toString() ?? '', style: _c),
-          ),
+          SizedBox(width: 70, child: Text(aluno.setor, style: _c)),
           SizedBox(
             width: 90,
-            child: Text(
-              aluno['categoria_usuario']?.toString() ?? '',
-              style: _c,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Text(aluno.categoriaUsuario, style: _c, overflow: TextOverflow.ellipsis),
           ),
           SizedBox(
             width: 100,
-            child: Text(
-              aluno['nivel']?.toString() ?? '',
-              style: _c,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Text(aluno.nivel, style: _c, overflow: TextOverflow.ellipsis),
           ),
           Expanded(
             child: Text(
-              aluno['telefone']?.toString() ?? '-',
+              aluno.telefone.isNotEmpty ? aluno.telefone : '-',
               style: _c,
               overflow: TextOverflow.ellipsis,
             ),

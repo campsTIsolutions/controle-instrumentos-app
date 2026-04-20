@@ -1,3 +1,4 @@
+import 'package:controle_instrumentos/features/alunos/models/aluno_record.dart';
 import 'package:controle_instrumentos/shared/widgets/inline_badge.dart';
 import 'package:controle_instrumentos/shared/widgets/person_avatar.dart';
 import 'package:controle_instrumentos/shared/widgets/tag_chip.dart';
@@ -15,11 +16,11 @@ class AlunosCards extends StatelessWidget {
     required this.onDeletar,
   });
 
-  final List<Map<String, dynamic>> alunos;
+  final List<AlunoRecord> alunos;
   final int currentPage;
   final int itensPorPagina;
-  final void Function(Map<String, dynamic>) onEditar;
-  final void Function(Map<String, dynamic>) onDeletar;
+  final void Function(AlunoRecord) onEditar;
+  final void Function(AlunoRecord) onDeletar;
 
   @override
   Widget build(BuildContext context) {
@@ -53,14 +54,14 @@ class _AlunoCard extends StatelessWidget {
   });
 
   final int numero;
-  final Map<String, dynamic> aluno;
+  final AlunoRecord aluno;
   final VoidCallback onEditar;
   final VoidCallback onDeletar;
 
   @override
   Widget build(BuildContext context) {
-    final imagemUrl = aluno['imagem_url'] as String?;
-    final idade = aluno['idade'];
+    final imagemUrl = aluno.imagemUrl;
+    final idade = aluno.idade;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -95,7 +96,7 @@ class _AlunoCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        aluno['nome_completo']?.toString() ?? '',
+                        aluno.nomeCompleto,
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -106,7 +107,7 @@ class _AlunoCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     InlineBadge(
-                      text: '#${aluno['numero_aluno']}',
+                      text: '#${aluno.numeroAluno}',
                       backgroundColor: const Color(0xFFEFF6FF),
                       textColor: const Color(0xFF2563EB),
                     ),
@@ -117,21 +118,21 @@ class _AlunoCard extends StatelessWidget {
                   spacing: 6,
                   runSpacing: 4,
                   children: [
-                    if (aluno['setor'] != null)
+                    if (aluno.setor.isNotEmpty)
                       TagChip(
-                        label: aluno['setor'],
+                        label: aluno.setor,
                         backgroundColor: const Color(0xFFF3F4F6),
                         textColor: const Color(0xFF374151),
                       ),
-                    if (aluno['categoria_usuario'] != null)
+                    if (aluno.categoriaUsuario.isNotEmpty)
                       TagChip(
-                        label: aluno['categoria_usuario'],
+                        label: aluno.categoriaUsuario,
                         backgroundColor: const Color(0xFFEDE9FE),
                         textColor: const Color(0xFF5B21B6),
                       ),
-                    if (aluno['nivel'] != null)
+                    if (aluno.nivel.isNotEmpty)
                       TagChip(
-                        label: aluno['nivel'],
+                        label: aluno.nivel,
                         backgroundColor: const Color(0xFFECFDF5),
                         textColor: const Color(0xFF065F46),
                       ),
@@ -143,8 +144,7 @@ class _AlunoCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                if (aluno['telefone'] != null &&
-                    aluno['telefone'].toString().isNotEmpty) ...[
+                if (aluno.telefone.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Row(
                     children: [
@@ -155,7 +155,7 @@ class _AlunoCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        aluno['telefone'].toString(),
+                        aluno.telefone,
                         style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF6B7280),

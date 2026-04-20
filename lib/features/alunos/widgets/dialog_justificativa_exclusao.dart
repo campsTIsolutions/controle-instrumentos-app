@@ -12,7 +12,6 @@ class _DialogJustificativaExclusaoState
     extends State<DialogJustificativaExclusao> {
   String? _motivoSelecionado;
   final _outroCtrl = TextEditingController();
-  bool _confirmando = false;
 
   static const _motivos = [
     'Falta de Tempo',
@@ -79,7 +78,7 @@ class _DialogJustificativaExclusaoState
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFB91C1C).withOpacity(0.15),
+                    color: const Color(0xFFB91C1C).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
@@ -148,7 +147,7 @@ class _DialogJustificativaExclusaoState
                   ),
                   decoration: BoxDecoration(
                     color: selecionado
-                        ? const Color(0xFFB91C1C).withOpacity(0.15)
+                        ? const Color(0xFFB91C1C).withValues(alpha: 0.15)
                         : const Color(0xFF2A2A3E),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
@@ -228,9 +227,7 @@ class _DialogJustificativaExclusaoState
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _confirmando
-                        ? null
-                        : () => Navigator.pop(context),
+                    onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       side: const BorderSide(color: Colors.white24),
@@ -247,7 +244,7 @@ class _DialogJustificativaExclusaoState
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _confirmando ? null : _confirmar,
+                    onPressed: _confirmar,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFB91C1C),
                       padding: const EdgeInsets.symmetric(vertical: 13),
@@ -255,23 +252,14 @@ class _DialogJustificativaExclusaoState
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: _confirmando
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Confirmar Exclusão',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
+                    child: const Text(
+                      'Confirmar Exclusão',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
                 ),
               ],

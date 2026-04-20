@@ -29,9 +29,9 @@ class _HistoricoPageState extends State<HistoricoPage> {
   final int _itensPorPagina = 10;
 
   bool _ordenarAlfabetico = false;
-  List<String> _filtroCategoria = [];
-  List<String> _filtroSetor = [];
-  List<String> _filtroMotivo = [];
+  final List<String> _filtroCategoria = [];
+  final List<String> _filtroSetor = [];
+  final List<String> _filtroMotivo = [];
   int? _filtroAno; // novo
 
   final _categorias = [
@@ -567,7 +567,7 @@ class _HistoricoPageState extends State<HistoricoPage> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 4,
                       ),
                     ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/config/supabase_config.dart';
 import 'features/alunos/alunos_page.dart';
 import 'features/chamada/tela_anual.dart';
 import 'features/historico/historico_page.dart';
@@ -9,9 +10,17 @@ import 'features/instrumentos/ui/instrumentos_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  if (!SupabaseConfig.isConfigured) {
+    throw StateError(
+      'Supabase nao configurado. Rode com '
+      '--dart-define=SUPABASE_URL=... '
+      '--dart-define=SUPABASE_ANON_KEY=...',
+    );
+  }
+
   await Supabase.initialize(
-    url: 'https://ylcfdbonhrvvbclinado.supabase.co',
-    anonKey: 'sb_publishable_YopOGM9CpLfvJXXiKNTHJw_Tx1RtZDn',
+    url: SupabaseConfig.url,
+    anonKey: SupabaseConfig.anonKey,
   );
 
   final session = Supabase.instance.client.auth.currentSession;

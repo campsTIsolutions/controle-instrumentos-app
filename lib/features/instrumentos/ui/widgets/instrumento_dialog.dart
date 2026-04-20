@@ -262,7 +262,7 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
                     : (value) {
                         setState(() => _levaInstrumento = value);
                       },
-                activeColor: const Color(0xFF2563EB),
+                activeThumbColor: const Color(0xFF2563EB),
               ),
               const SizedBox(height: 12),
               InstrumentoImagemField(
@@ -290,7 +290,7 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
                     : (value) {
                         setState(() => _disponivel = value);
                       },
-                activeColor: const Color(0xFF2563EB),
+                activeThumbColor: const Color(0xFF2563EB),
               ),
               const SizedBox(height: 20),
               InstrumentoDialogActionsRow(

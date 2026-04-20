@@ -138,10 +138,10 @@ class _TelaAnualState extends State<TelaAnual> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF1976D2).withOpacity(0.08),
+        color: const Color(0xFF1976D2).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-            color: const Color(0xFF1976D2).withOpacity(0.35), width: 0.8),
+            color: const Color(0xFF1976D2).withValues(alpha: 0.35), width: 0.8),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
@@ -270,13 +270,13 @@ class _MesCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: temDados
-                ? const Color(0xFF1976D2).withOpacity(0.35)
+                ? const Color(0xFF1976D2).withValues(alpha: 0.35)
                 : Colors.grey.shade200,
             width: 0.8,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 4,
               offset: const Offset(0, 1),
             ),

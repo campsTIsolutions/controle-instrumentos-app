@@ -176,10 +176,10 @@ class BotaoStatus extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 9),
           decoration: BoxDecoration(
-            color: selecionado ? cor : cor.withOpacity(0.08),
+            color: selecionado ? cor : cor.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: selecionado ? cor : cor.withOpacity(0.3),
+              color: selecionado ? cor : cor.withValues(alpha: 0.3),
               width: 1.5,
             ),
           ),

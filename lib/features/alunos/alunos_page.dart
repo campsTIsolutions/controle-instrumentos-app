@@ -1,14 +1,13 @@
-import 'package:controle_instrumentos/core/utils/pagination_utils.dart';
 import 'package:controle_instrumentos/core/utils/debouncer.dart';
-import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
+import 'package:controle_instrumentos/core/utils/pagination_utils.dart';
 import 'package:controle_instrumentos/features/alunos/models/aluno_record.dart';
 import 'package:controle_instrumentos/features/alunos/repository/alunos_repository.dart';
 import 'package:controle_instrumentos/features/alunos/widgets/aluno_dialog.dart';
 import 'package:controle_instrumentos/features/alunos/widgets/alunos_list.dart';
 import 'package:controle_instrumentos/features/alunos/widgets/dialog_justificativa_exclusao.dart';
+import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
 import 'package:controle_instrumentos/shared/widgets/pagination_footer.dart';
+import 'package:flutter/material.dart';
 
 class AlunosPage extends StatefulWidget {
   const AlunosPage({super.key});
@@ -18,22 +17,24 @@ class AlunosPage extends StatefulWidget {
 }
 
 class _AlunosPageState extends State<AlunosPage> {
-  final _supabase = Supabase.instance.client;
   final _alunosRepository = AlunosRepository();
   final _searchDebouncer = Debouncer(delay: const Duration(milliseconds: 250));
   final _searchController = TextEditingController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  List<Map<String, dynamic>> _alunos = [];
-  List<Map<String, dynamic>> _alunosFiltrados = [];
+  List<AlunoRecord> _alunos = [];
   bool _isLoading = true;
+  bool _isSalvando = false;
+  bool _isExcluindo = false;
 
   int _currentPage = 1;
+  int _totalItens = 0;
   final int _itensPorPagina = 10;
 
   bool _ordenarAlfabetico = false;
-  List<String> _filtroCategoria = [];
-  List<String> _filtroSetor = [];
+  final List<String> _filtroCategoria = [];
+  final List<String> _filtroSetor = [];
+
   final _categorias = [
     'Mentor(a)',
     'Kids',
@@ -41,6 +42,7 @@ class _AlunosPageState extends State<AlunosPage> {
     'Aprendiz',
     'Ex-Aprendiz',
   ];
+
   final _setores = ['Dança', 'Escudo', 'Pavilhão', 'Linha', 'Baliza'];
 
   @override
@@ -56,83 +58,53 @@ class _AlunosPageState extends State<AlunosPage> {
     super.dispose();
   }
 
-  Future<void> _carregarAlunos() async {
-    setState(() => _isLoading = true);
-    try {
-      final response = await _alunosRepository.listarAlunos();
-
-      setState(() {
-        _alunos = response.map((a) => a.toMap()).toList();
-        _aplicarFiltros();
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao carregar alunos: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _aplicarFiltros() {
-    List<Map<String, dynamic>> resultado = List.from(_alunos);
-
-    final query = _searchController.text.toLowerCase();
-    if (query.isNotEmpty) {
-      resultado = resultado
-          .where(
-            (a) =>
-                a['nome_completo'].toString().toLowerCase().contains(query) ||
-                a['numero_aluno'].toString().contains(query),
-          )
-          .toList();
-    }
-
-    if (_filtroCategoria.isNotEmpty) {
-      resultado = resultado
-          .where((a) => _filtroCategoria.contains(a['categoria_usuario']))
-          .toList();
-    }
-
-    if (_filtroSetor.isNotEmpty) {
-      resultado = resultado
-          .where((a) => _filtroSetor.contains(a['setor']))
-          .toList();
-    }
-
-    if (_ordenarAlfabetico) {
-      resultado.sort(
-        (a, b) => (a['nome_completo'] as String).compareTo(
-          b['nome_completo'] as String,
-        ),
-      );
-    }
-
-    setState(() {
-      _alunosFiltrados = resultado;
-      _currentPage = 1;
-    });
-  }
-
-  List<Map<String, dynamic>> get _alunosPaginados {
-    return pagedSlice(
-      items: _alunosFiltrados,
-      currentPage: _currentPage,
-      itemsPerPage: _itensPorPagina,
-    );
-  }
-
   int get _totalPaginas => pageCount(
-    totalItems: _alunosFiltrados.length,
+    totalItems: _totalItens,
     itemsPerPage: _itensPorPagina,
   );
 
-  Future<void> _deletarAluno(int id) async {
+  Future<void> _carregarAlunos({int? page, bool showLoading = true}) async {
+    final nextPage = page ?? _currentPage;
+
+    if (showLoading && mounted) {
+      setState(() => _isLoading = true);
+    }
+
+    try {
+      final result = await _alunosRepository.listarAlunosPaginados(
+        page: nextPage,
+        itemsPerPage: _itensPorPagina,
+        query: _searchController.text,
+        categorias: _filtroCategoria,
+        setores: _filtroSetor,
+        ordenarAlfabetico: _ordenarAlfabetico,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _alunos = result.items;
+        _totalItens = result.total;
+        _currentPage = result.page;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao carregar alunos: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _aplicarFiltrosServidor() async {
+    await _carregarAlunos(page: 1);
+  }
+
+  Future<void> _deletarAluno(AlunoRecord aluno) async {
     final resultado = await showDialog<Map<String, String>>(
       context: context,
       barrierDismissible: false,
@@ -141,70 +113,83 @@ class _AlunosPageState extends State<AlunosPage> {
 
     if (resultado == null) return;
 
+    setState(() => _isExcluindo = true);
+
     try {
-      final aluno = _alunos.firstWhere((a) => a['id_aluno'] == id);
-      final alunoRecord = AlunoRecord.fromMap(aluno);
       await _alunosRepository.registrarExclusaoEDeletar(
-        aluno: alunoRecord,
+        aluno: aluno,
         motivoExclusao: resultado['motivo'] ?? 'Outro',
       );
-      _carregarAlunos();
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Aluno excluído com sucesso.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      if (!mounted) return;
+
+      final targetPage = (_alunos.length == 1 && _currentPage > 1)
+          ? _currentPage - 1
+          : _currentPage;
+
+      await _carregarAlunos(page: targetPage);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aluno excluído com sucesso.'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao excluir: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erro ao excluir: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        setState(() => _isExcluindo = false);
       }
     }
   }
 
-  void _abrirDialogAluno({Map<String, dynamic>? aluno}) {
+  void _abrirDialogAluno({AlunoRecord? aluno}) {
     showDialog(
       context: context,
-      builder: (ctx) => AlunoDialog(
-        aluno: aluno,
+      builder: (_) => AlunoDialog(
+        aluno: aluno?.toMap(),
         onSalvar: (dados, imagemFile) async {
-          String? imagemUrl = aluno?['imagem_url'] as String?;
+          if (_isSalvando) return;
 
-          if (imagemFile != null) {
-            final bytes = await imagemFile.readAsBytes();
-            final nomeArquivo =
-                '${DateTime.now().millisecondsSinceEpoch}_${imagemFile.path.split('/').last}';
-            await _supabase.storage
-                .from('alunos-fotos')
-                .uploadBinary(nomeArquivo, bytes);
-            imagemUrl = _supabase.storage
-                .from('alunos-fotos')
-                .getPublicUrl(nomeArquivo);
+          setState(() => _isSalvando = true);
+
+          try {
+            String? imagemUrl = aluno?.imagemUrl;
+
+            if (imagemFile != null) {
+              final bytes = await imagemFile.readAsBytes();
+              imagemUrl = await _alunosRepository.uploadFotoAluno(
+                bytes: bytes,
+                originalFileName: imagemFile.name,
+              );
+            }
+
+            final dadosFinais = {
+              ...dados,
+              if (imagemUrl != null) 'imagem_url': imagemUrl,
+            };
+
+            await _alunosRepository.salvarAluno(
+              dados: dadosFinais,
+              idAluno: aluno?.idAluno,
+            );
+
+            if (!mounted) return;
+            Navigator.of(context).pop();
+            await _carregarAlunos(page: _currentPage, showLoading: false);
+          } finally {
+            if (mounted) {
+              setState(() => _isSalvando = false);
+            }
           }
-
-          final dadosFinais = {
-            ...dados,
-            if (imagemUrl != null) 'imagem_url': imagemUrl,
-          };
-
-          if (aluno == null) {
-            await _supabase.from('alunos').insert(dadosFinais);
-          } else {
-            await _supabase
-                .from('alunos')
-                .update(dadosFinais)
-                .eq('id_aluno', aluno['id_aluno']);
-          }
-          if (mounted) Navigator.pop(ctx);
-          _carregarAlunos();
         },
       ),
     );
@@ -224,17 +209,15 @@ class _AlunosPageState extends State<AlunosPage> {
           icon: SizedBox(
             width: 24,
             height: 24,
-            child: Image.asset("assets/menu-icon.png"),
+            child: Image.asset('assets/menu-icon.png'),
           ),
-          onPressed: () {
-            _scaffoldKey.currentState?.openDrawer();
-          },
+          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
           style: IconButton.styleFrom(
             backgroundColor: const Color.fromARGB(0, 255, 255, 255),
           ),
         ),
         title: const Text(
-          "CAMPS",
+          'CAMPS',
           style: TextStyle(
             color: Colors.black,
             fontSize: 25,
@@ -263,18 +246,14 @@ class _AlunosPageState extends State<AlunosPage> {
                   ),
                 ),
               ),
-
               Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: TextField(
                   controller: _searchController,
                   onChanged: (_) {
-                    _searchDebouncer.run(() {
+                    _searchDebouncer.run(() async {
                       if (!mounted) return;
-                      _aplicarFiltros();
+                      await _carregarAlunos(page: 1, showLoading: false);
                     });
                   },
                   style: const TextStyle(color: Colors.black87),
@@ -292,33 +271,22 @@ class _AlunosPageState extends State<AlunosPage> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 8),
-
-              // ── Filtros horizontais ────────────────────────────────────────
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // A-Z: Column com label vazio para alinhar com os demais
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Label invisível com a mesma altura dos demais labels
                         const Text(
                           '',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(8),
@@ -334,13 +302,10 @@ class _AlunosPageState extends State<AlunosPage> {
                               Checkbox(
                                 value: _ordenarAlfabetico,
                                 activeColor: const Color(0xFF2563EB),
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                                onChanged: (v) {
-                                  setState(
-                                    () => _ordenarAlfabetico = v ?? false,
-                                  );
-                                  _aplicarFiltros();
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                onChanged: (v) async {
+                                  setState(() => _ordenarAlfabetico = v ?? false);
+                                  await _aplicarFiltrosServidor();
                                 },
                               ),
                               const Text(
@@ -356,10 +321,7 @@ class _AlunosPageState extends State<AlunosPage> {
                         ),
                       ],
                     ),
-
                     const SizedBox(width: 10),
-
-                    // Categoria
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -376,21 +338,18 @@ class _AlunosPageState extends State<AlunosPage> {
                           children: _categorias.map((cat) {
                             final selecionado = _filtroCategoria.contains(cat);
                             return GestureDetector(
-                              onTap: () {
+                              onTap: () async {
                                 setState(() {
                                   if (selecionado) {
                                     _filtroCategoria.remove(cat);
                                   } else {
                                     _filtroCategoria.add(cat);
                                   }
-                                  _aplicarFiltros();
                                 });
+                                await _aplicarFiltrosServidor();
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(8),
@@ -405,27 +364,23 @@ class _AlunosPageState extends State<AlunosPage> {
                                   children: [
                                     Checkbox(
                                       value: selecionado,
-                                      onChanged: (value) {
+                                      onChanged: (value) async {
                                         setState(() {
-                                          if (value == true) {
+                                          if (value == true && !_filtroCategoria.contains(cat)) {
                                             _filtroCategoria.add(cat);
                                           } else {
                                             _filtroCategoria.remove(cat);
                                           }
-                                          _aplicarFiltros();
                                         });
+                                        await _aplicarFiltrosServidor();
                                       },
                                       activeColor: const Color(0xFF2563EB),
                                       checkColor: Colors.white,
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
+                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     Text(
                                       cat,
-                                      style: const TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 13,
-                                      ),
+                                      style: const TextStyle(color: Colors.black, fontSize: 13),
                                     ),
                                   ],
                                 ),
@@ -435,10 +390,7 @@ class _AlunosPageState extends State<AlunosPage> {
                         ),
                       ],
                     ),
-
                     const SizedBox(width: 10),
-
-                    // Setor
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -455,21 +407,18 @@ class _AlunosPageState extends State<AlunosPage> {
                           children: _setores.map((setor) {
                             final selecionado = _filtroSetor.contains(setor);
                             return GestureDetector(
-                              onTap: () {
+                              onTap: () async {
                                 setState(() {
                                   if (selecionado) {
                                     _filtroSetor.remove(setor);
                                   } else {
                                     _filtroSetor.add(setor);
                                   }
-                                  _aplicarFiltros();
                                 });
+                                await _aplicarFiltrosServidor();
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(8),
@@ -484,27 +433,23 @@ class _AlunosPageState extends State<AlunosPage> {
                                   children: [
                                     Checkbox(
                                       value: selecionado,
-                                      onChanged: (value) {
+                                      onChanged: (value) async {
                                         setState(() {
-                                          if (value == true) {
+                                          if (value == true && !_filtroSetor.contains(setor)) {
                                             _filtroSetor.add(setor);
                                           } else {
                                             _filtroSetor.remove(setor);
                                           }
-                                          _aplicarFiltros();
                                         });
+                                        await _aplicarFiltrosServidor();
                                       },
                                       activeColor: const Color(0xFF2563EB),
                                       checkColor: Colors.white,
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
+                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     Text(
                                       setor,
-                                      style: const TextStyle(
-                                        color: Colors.black,
-                                        fontSize: 13,
-                                      ),
+                                      style: const TextStyle(color: Colors.black, fontSize: 13),
                                     ),
                                   ],
                                 ),
@@ -517,9 +462,7 @@ class _AlunosPageState extends State<AlunosPage> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 10),
-
               if (_isLoading)
                 const Center(
                   child: Padding(
@@ -527,21 +470,24 @@ class _AlunosPageState extends State<AlunosPage> {
                     child: CircularProgressIndicator(),
                   ),
                 )
-              else if (_alunosFiltrados.isEmpty)
+              else if (_alunos.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(40),
                   child: Center(child: Text('Nenhum aluno encontrado.')),
                 )
               else ...[
                 AlunosList(
-                  alunos: _alunosPaginados,
+                  alunos: _alunos,
                   currentPage: _currentPage,
                   itensPorPagina: _itensPorPagina,
                   isTablet: isTablet,
-                  onEditar: (a) => _abrirDialogAluno(aluno: a),
-                  onDeletar: (a) => _deletarAluno(a['id_aluno'] as int),
+                  onEditar: _isSalvando || _isExcluindo
+                      ? (_) {}
+                      : (a) => _abrirDialogAluno(aluno: a),
+                  onDeletar: _isSalvando || _isExcluindo
+                      ? (_) {}
+                      : _deletarAluno,
                 ),
-
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
@@ -552,30 +498,28 @@ class _AlunosPageState extends State<AlunosPage> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 4,
                       ),
                     ],
                   ),
                   child: PaginationFooter(
-                    totalLabel: '${_alunosFiltrados.length} alunos',
+                    totalLabel: '$_totalItens alunos',
                     currentPage: _currentPage,
                     totalPages: _totalPaginas,
-                    onFirstPage: () => setState(() => _currentPage = 1),
-                    onPreviousPage: () => setState(
-                      () => _currentPage = (_currentPage - 1).clamp(
-                        1,
-                        _totalPaginas,
-                      ),
+                    onFirstPage: () => _carregarAlunos(page: 1, showLoading: false),
+                    onPreviousPage: () => _carregarAlunos(
+                      page: (_currentPage - 1).clamp(1, _totalPaginas),
+                      showLoading: false,
                     ),
-                    onNextPage: () => setState(
-                      () => _currentPage = (_currentPage + 1).clamp(
-                        1,
-                        _totalPaginas,
-                      ),
+                    onNextPage: () => _carregarAlunos(
+                      page: (_currentPage + 1).clamp(1, _totalPaginas),
+                      showLoading: false,
                     ),
-                    onLastPage: () =>
-                        setState(() => _currentPage = _totalPaginas),
+                    onLastPage: () => _carregarAlunos(
+                      page: _totalPaginas,
+                      showLoading: false,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 80),
@@ -584,11 +528,16 @@ class _AlunosPageState extends State<AlunosPage> {
           ),
         ),
       ),
-
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _abrirDialogAluno(),
+        onPressed: _isSalvando || _isExcluindo ? null : () => _abrirDialogAluno(),
         backgroundColor: const Color(0xFF2563EB),
-        child: const Icon(Icons.add, color: Colors.white),
+        child: _isSalvando
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

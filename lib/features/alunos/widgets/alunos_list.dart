@@ -1,3 +1,4 @@
+import 'package:controle_instrumentos/features/alunos/models/aluno_record.dart';
 import 'package:controle_instrumentos/features/alunos/widgets/alunos_list/alunos_cards.dart';
 import 'package:controle_instrumentos/features/alunos/widgets/alunos_list/alunos_table.dart';
 import 'package:flutter/material.dart';
@@ -13,12 +14,12 @@ class AlunosList extends StatelessWidget {
     required this.onDeletar,
   });
 
-  final List<Map<String, dynamic>> alunos;
+  final List<AlunoRecord> alunos;
   final int currentPage;
   final int itensPorPagina;
   final bool isTablet;
-  final void Function(Map<String, dynamic>) onEditar;
-  final void Function(Map<String, dynamic>) onDeletar;
+  final void Function(AlunoRecord) onEditar;
+  final void Function(AlunoRecord) onDeletar;
 
   @override
   Widget build(BuildContext context) {
