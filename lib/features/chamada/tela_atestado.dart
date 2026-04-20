@@ -1,12 +1,7 @@
 // lib/features/chamada/tela_atestado.dart
-// Tela dedicada ao comprovante de atestado médico
-// Usa dart:html para seleção de arquivo no Flutter Web.
-// Para mobile, substitua por image_picker ou file_picker.
-
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
-import 'dart:async';
+// Tela dedicada ao comprovante de atestado médico.
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
 import 'models.dart';
 
@@ -40,24 +35,16 @@ class _TelaAtestadoState extends State<TelaAtestado> {
     _arquivoNome = widget.student.atestadoNome[widget.data];
   }
 
-  // ── Seletor de arquivo (Web) ──────────────────────────────────────────────
+  // ── Seletor de arquivo (Android/Web/Desktop) ─────────────────────────────
   Future<void> _selecionarArquivo() async {
     setState(() => _carregando = true);
 
-    final completer = Completer<String?>();
-    final input = html.FileUploadInputElement()
-      ..accept = '.pdf,.jpg,.jpeg,.png';
-
-    input.onChange.listen((e) {
-      final files = input.files;
-      completer.complete(
-        (files != null && files.isNotEmpty) ? files.first.name : null,
-      );
-    });
-
-    input.click();
-
-    final nome = await completer.future;
+    final resultado = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: false,
+    );
+    final nome = resultado?.files.single.name;
 
     if (!mounted) return;
     setState(() {

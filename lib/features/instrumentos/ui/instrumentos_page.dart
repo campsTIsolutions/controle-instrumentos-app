@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/services/user_profile_service.dart';
+import '../../../core/utils/debouncer.dart';
+import '../../../core/utils/async_action_guard.dart';
+import '../../login/login_page.dart';
 import '../repository/instrumentos_repository.dart';
+import 'instrumentos_page_utils.dart';
 import 'widgets/app_drawer.dart';
+import 'widgets/instrumentos_content.dart';
+import 'widgets/instrumentos_filters_bar.dart';
 import 'widgets/perfil_drawer.dart';
-import 'widgets/instrumento_card.dart';
 import 'widgets/instrumento_detalhe_page.dart';
 import 'widgets/instrumento_dialog.dart';
 
@@ -18,6 +24,9 @@ class InstrumentosPage extends StatefulWidget {
 class _InstrumentosPageState extends State<InstrumentosPage> {
   final _repository = InstrumentosRepository();
   final _supabase = Supabase.instance.client;
+  final _userProfileService = UserProfileService();
+  final _profileMenuGuard = AsyncActionGuard();
+  final _searchDebouncer = Debouncer(delay: const Duration(milliseconds: 250));
   final _searchController = TextEditingController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -33,50 +42,6 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
   final _propriedades = const ['CAMPS', 'Terceiros'];
   final _statusDisponibilidade = const ['Disponivel', 'Indisponivel'];
 
-  String _texto(Map<String, dynamic> item, List<String> chaves) {
-    for (final chave in chaves) {
-      final valor = item[chave];
-      if (valor != null) return valor.toString();
-    }
-    return '';
-  }
-
-  String _nomeAluno(Map<String, dynamic> item) {
-    final alunoId = item['id_aluno'];
-    final id = alunoId is int ? alunoId : int.tryParse(alunoId?.toString() ?? '');
-    if (id == null) return '';
-    final nome = _nomesAlunosPorId[id];
-    if (nome != null) return nome;
-    return '';
-  }
-
-  bool _bool(Map<String, dynamic> item, List<String> chaves) {
-    for (final chave in chaves) {
-      final valor = item[chave];
-      if (valor is bool) return valor;
-      if (valor is num) return valor != 0;
-      if (valor is String) {
-        final normalizado = valor.trim().toLowerCase();
-        if (normalizado == 'true' ||
-            normalizado == '1' ||
-            normalizado == 'sim' ||
-            normalizado == 'disponivel' ||
-            normalizado == 'disponível') {
-          return true;
-        }
-        if (normalizado == 'false' ||
-            normalizado == '0' ||
-            normalizado == 'nao' ||
-            normalizado == 'não' ||
-            normalizado == 'indisponivel' ||
-            normalizado == 'indisponível') {
-          return false;
-        }
-      }
-    }
-    return false;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -85,6 +50,7 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
 
   @override
   void dispose() {
+    _searchDebouncer.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -175,30 +141,39 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
     final query = _searchController.text.trim().toLowerCase();
     if (query.isNotEmpty) {
       resultado = resultado.where((item) {
-        final nome = _texto(item, ['nome_instrumento']).toLowerCase();
-        final patrimonio = _texto(item, ['numero_patrimonio']).toLowerCase();
+        final nome = InstrumentosPageUtils.texto(item, [
+          'nome_instrumento',
+        ]).toLowerCase();
+        final patrimonio = InstrumentosPageUtils.texto(item, [
+          'numero_patrimonio',
+        ]).toLowerCase();
         return nome.contains(query) || patrimonio.contains(query);
       }).toList();
     }
 
     if (_filtroPropriedade != null) {
       resultado = resultado.where((item) {
-        return _texto(item, ['propriedade_instrumento']) == _filtroPropriedade;
+        return InstrumentosPageUtils.texto(item, ['propriedade_instrumento']) ==
+            _filtroPropriedade;
       }).toList();
     }
 
     if (_filtroStatus != null) {
       final disponivel = _filtroStatus == 'Disponivel';
       resultado = resultado
-          .where((item) => _bool(item, ['disponivel']) == disponivel)
+          .where(
+            (item) =>
+                InstrumentosPageUtils.boolValue(item, ['disponivel']) ==
+                disponivel,
+          )
           .toList();
     }
 
     if (_ordenarAlfabetico) {
       resultado.sort(
-        (a, b) => _texto(a, ['nome_instrumento']).compareTo(
-          _texto(b, ['nome_instrumento']),
-        ),
+        (a, b) => InstrumentosPageUtils.texto(a, [
+          'nome_instrumento',
+        ]).compareTo(InstrumentosPageUtils.texto(b, ['nome_instrumento'])),
       );
     }
 
@@ -221,10 +196,7 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Excluir',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('Excluir', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -268,6 +240,71 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
     );
   }
 
+  Future<void> _abrirMenuUsuario(BuildContext context) async {
+    await _profileMenuGuard.run(() async {
+      final RenderBox button = context.findRenderObject() as RenderBox;
+      final RenderBox overlay =
+          Overlay.of(context).context.findRenderObject() as RenderBox;
+
+      final RelativeRect position = RelativeRect.fromRect(
+        Rect.fromPoints(
+          button.localToGlobal(
+            Offset(-15, button.size.height - 8),
+            ancestor: overlay,
+          ),
+          button.localToGlobal(
+            button.size.bottomRight(Offset.zero) + const Offset(-15, -8),
+            ancestor: overlay,
+          ),
+        ),
+        Offset.zero & overlay.size,
+      );
+
+      final nomeUsuario = await _userProfileService.resolveDisplayName();
+      if (!context.mounted) return;
+
+      final result = await showMenu<String>(
+        context: context,
+        position: position,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        items: [
+          PopupMenuItem<String>(
+            enabled: false,
+            child: Row(
+              children: [
+                const Icon(Icons.person_outline),
+                const SizedBox(width: 10),
+                Text(
+                  nomeUsuario,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const PopupMenuDivider(),
+          const PopupMenuItem<String>(
+            value: 'logout',
+            child: Row(
+              children: [
+                Icon(Icons.logout, color: Colors.red),
+                SizedBox(width: 10),
+                Text('Sair', style: TextStyle(color: Colors.red)),
+              ],
+            ),
+          ),
+        ],
+      );
+
+      if (result != 'logout') return;
+      await _supabase.auth.signOut();
+      if (!context.mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -309,113 +346,7 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
                 height: 24,
                 child: Image.asset('assets/profile.png'),
               ),
-              onPressed: () async {
-                final RenderBox button =
-                    context.findRenderObject() as RenderBox;
-                final RenderBox overlay =
-                    Overlay.of(context).context.findRenderObject() as RenderBox;
-
-                final RelativeRect position = RelativeRect.fromRect(
-                  Rect.fromPoints(
-                    button.localToGlobal(
-                      Offset(-15, button.size.height - 8),
-                      ancestor: overlay,
-                    ),
-                    button.localToGlobal(
-                      button.size.bottomRight(Offset.zero) +
-                          const Offset(-15, -8),
-                      ancestor: overlay,
-                    ),
-                  ),
-                  Offset.zero & overlay.size,
-                );
-
-                final user =
-                    _supabase.auth.currentUser ?? _supabase.auth.currentSession?.user;
-                final userEmail = user?.email?.trim();
-                final emailLogin = userEmail?.split('@').first.trim();
-                String nomeUsuario =
-                    user?.userMetadata?['name']?.toString().trim() ?? '';
-
-                if (userEmail != null && userEmail.isNotEmpty) {
-                  try {
-                    final usuarioPorEmail = await _supabase
-                        .from('usuarios')
-                        .select('nome_usuario')
-                        .eq('login', userEmail)
-                        .maybeSingle();
-
-                    final nomeBancoEmail = usuarioPorEmail?['nome_usuario']
-                        ?.toString()
-                        .trim();
-
-                    if (nomeBancoEmail != null && nomeBancoEmail.isNotEmpty) {
-                      nomeUsuario = nomeBancoEmail;
-                    } else if (emailLogin != null && emailLogin.isNotEmpty) {
-                      final usuarioPorLogin = await _supabase
-                          .from('usuarios')
-                          .select('nome_usuario')
-                          .eq('login', emailLogin)
-                          .maybeSingle();
-
-                      final nomeBancoLogin = usuarioPorLogin?['nome_usuario']
-                          ?.toString()
-                          .trim();
-
-                      if (nomeBancoLogin != null && nomeBancoLogin.isNotEmpty) {
-                        nomeUsuario = nomeBancoLogin;
-                      }
-                    }
-                  } catch (_) {
-                    // Se falhar a consulta, mantem fallback abaixo.
-                  }
-                }
-
-                if (nomeUsuario.isEmpty) {
-                  nomeUsuario = emailLogin ?? userEmail ?? 'Usuario';
-                }
-
-                final result = await showMenu<String>(
-                  context: context,
-                  position: position,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  items: [
-                    PopupMenuItem<String>(
-                      enabled: false,
-                      child: Row(
-                        children: [
-                          const Icon(Icons.person_outline),
-                          const SizedBox(width: 10),
-                          Text(
-                            nomeUsuario,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    const PopupMenuItem<String>(
-                      value: 'logout',
-                      child: Row(
-                        children: [
-                          Icon(Icons.logout, color: Colors.red),
-                          SizedBox(width: 10),
-                          Text(
-                            'Sair',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-
-                if (result == 'logout') {
-                  // implementar logout depois
-                }
-              },
+              onPressed: () => _abrirMenuUsuario(context),
             ),
           ),
         ],
@@ -429,267 +360,65 @@ class _InstrumentosPageState extends State<InstrumentosPage> {
           const SizedBox(height: 15),
           const Text(
             'Controle de Instrumentos',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (_) => setState(_aplicarFiltros),
-              decoration: InputDecoration(
-                hintText: 'Pesquisar instrumento...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: const Color.fromARGB(255, 255, 255, 255),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 32,
-                        height: 32,
-                        child: Checkbox(
-                          value: _ordenarAlfabetico,
-                          activeColor: const Color(0xFF2563EB),
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          onChanged: (v) {
-                            setState(() {
-                              _ordenarAlfabetico = v ?? false;
-                              _aplicarFiltros();
-                            });
-                          },
-                        ),
-                      ),
-                      const Text(
-                        'A-Z',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF374151),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                _FiltroDropdown(
-                  hint: 'Propriedade',
-                  valor: _filtroPropriedade,
-                  opcoes: _propriedades,
-                  onChanged: (v) {
-                    setState(() {
-                      _filtroPropriedade = v;
-                      _aplicarFiltros();
-                    });
-                  },
-                  onLimpar: () {
-                    setState(() {
-                      _filtroPropriedade = null;
-                      _aplicarFiltros();
-                    });
-                  },
-                ),
-                const SizedBox(width: 10),
-                _FiltroDropdown(
-                  hint: 'Status',
-                  valor: _filtroStatus,
-                  opcoes: _statusDisponibilidade,
-                  onChanged: (v) {
-                    setState(() {
-                      _filtroStatus = v;
-                      _aplicarFiltros();
-                    });
-                  },
-                  onLimpar: () {
-                    setState(() {
-                      _filtroStatus = null;
-                      _aplicarFiltros();
-                    });
-                  },
-                ),
-              ],
-            ),
+          InstrumentosFiltersBar(
+            searchController: _searchController,
+            onSearchChanged: (_) {
+              _searchDebouncer.run(() {
+                if (!mounted) return;
+                setState(_aplicarFiltros);
+              });
+            },
+            ordenarAlfabetico: _ordenarAlfabetico,
+            onOrdenarAlfabeticoChanged: (value) {
+              setState(() {
+                _ordenarAlfabetico = value;
+                _aplicarFiltros();
+              });
+            },
+            filtroPropriedade: _filtroPropriedade,
+            propriedades: _propriedades,
+            onFiltroPropriedadeChanged: (value) {
+              setState(() {
+                _filtroPropriedade = value;
+                _aplicarFiltros();
+              });
+            },
+            filtroStatus: _filtroStatus,
+            statusDisponibilidade: _statusDisponibilidade,
+            onFiltroStatusChanged: (value) {
+              setState(() {
+                _filtroStatus = value;
+                _aplicarFiltros();
+              });
+            },
           ),
           const SizedBox(height: 15),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _erroCarregamento != null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text(
-                                'Nao foi possivel carregar os instrumentos.',
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _erroCarregamento!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: Colors.red),
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: _carregarInstrumentos,
-                                child: const Text('Tentar novamente'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : _instrumentosFiltrados.isEmpty
-                        ? const Center(
-                            child: Text('Nenhum instrumento encontrado.'),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(12),
-                            itemCount: _instrumentosFiltrados.length,
-                            itemBuilder: (context, index) {
-                              final item = _instrumentosFiltrados[index];
-                              final nome = _texto(item, ['nome_instrumento']);
-                              final patrimonio = _texto(
-                                item,
-                                ['numero_patrimonio'],
-                              );
-                              final disponivel = _bool(item, ['disponivel']);
-                              final observacoes = _texto(item, ['observacoes']);
-                              final propriedade = _texto(
-                                item,
-                                ['propriedade_instrumento'],
-                              );
-                              final alunoNome = _nomeAluno(item);
-                              final levaInstrumento = _bool(
-                                item,
-                                ['leva_instrumento'],
-                              );
-                              final imageUrl = _texto(item, ['imagem_url']);
-
-                              final status =
-                                  disponivel ? 'Disponível' : 'Indisponível';
-
-                              return InstrumentoCard(
-                                nome: nome,
-                                patrimonio: patrimonio,
-                                status: status,
-                                alunoNome: alunoNome,
-                                propriedade: propriedade,
-                                levaInstrumento: levaInstrumento,
-                                observacoes: observacoes,
-                                imageUrl: imageUrl,
-                                onTap: () {
-                                  _abrirDetalhesInstrumento(
-                                    context: context,
-                                    nome: nome,
-                                    patrimonio: patrimonio,
-                                    status: status,
-                                    alunoNome: alunoNome,
-                                    propriedade: propriedade,
-                                    levaInstrumento: levaInstrumento,
-                                    observacoes: observacoes,
-                                    imageUrl: imageUrl,
-                                  );
-                                },
-                                onEdit: () => _abrirDialogInstrumento(
-                                  instrumento: item,
-                                ),
-                                onDelete: () => _deletarInstrumento(
-                                  item['id_instrumento'],
-                                ),
-                              );
-                            },
-                          ),
+            child: InstrumentosContent(
+              isLoading: _isLoading,
+              erroCarregamento: _erroCarregamento,
+              instrumentosFiltrados: _instrumentosFiltrados,
+              nomesAlunosPorId: _nomesAlunosPorId,
+              onRetry: _carregarInstrumentos,
+              onTapItem: (item) => _abrirDetalhesInstrumento(
+                context: context,
+                nome: item.nome,
+                patrimonio: item.patrimonio,
+                status: item.status,
+                alunoNome: item.alunoNome,
+                propriedade: item.propriedade,
+                levaInstrumento: item.levaInstrumento,
+                observacoes: item.observacoes,
+                imageUrl: item.imageUrl,
+              ),
+              onEditItem: (item) => _abrirDialogInstrumento(instrumento: item),
+              onDeleteItem: _deletarInstrumento,
+            ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _FiltroDropdown extends StatelessWidget {
-  const _FiltroDropdown({
-    required this.hint,
-    required this.valor,
-    required this.opcoes,
-    required this.onChanged,
-    required this.onLimpar,
-  });
-
-  final String hint;
-  final String? valor;
-  final List<String> opcoes;
-  final ValueChanged<String?> onChanged;
-  final VoidCallback onLimpar;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: valor,
-          hint: Text(
-            hint,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7280),
-            ),
-          ),
-          borderRadius: BorderRadius.circular(10),
-          items: [
-            ...opcoes.map(
-              (opcao) => DropdownMenuItem<String>(
-                value: opcao,
-                child: Text(opcao),
-              ),
-            ),
-            if (valor != null)
-              const DropdownMenuItem<String>(
-                value: '__limpar__',
-                child: Text('Limpar filtro'),
-              ),
-          ],
-          onChanged: (value) {
-            if (value == '__limpar__') {
-              onLimpar();
-              return;
-            }
-            onChanged(value);
-          },
-        ),
       ),
     );
   }
