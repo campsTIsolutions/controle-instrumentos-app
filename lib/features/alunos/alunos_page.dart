@@ -11,14 +11,15 @@ import 'package:controle_instrumentos/core/theme/theme.dart';
 import 'package:flutter/material.dart';
 
 class AlunosPage extends StatefulWidget {
-  const AlunosPage({super.key});
+  const AlunosPage({super.key, this.repository});
+
+  final AlunosRepositoryContract? repository;
 
   @override
   State<AlunosPage> createState() => _AlunosPageState();
 }
 
 class _AlunosPageState extends State<AlunosPage> {
-  final _alunosRepository = AlunosRepository();
   final _searchDebouncer = Debouncer(delay: const Duration(milliseconds: 250));
   final _searchController = TextEditingController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -193,6 +194,12 @@ class _AlunosPageState extends State<AlunosPage> {
       ),
     );
   }
+
+  AlunosRepositoryContract get _alunosRepository {
+    return widget.repository ?? _defaultRepository;
+  }
+
+  static final AlunosRepository _defaultRepository = AlunosRepository();
 
   @override
   Widget build(BuildContext context) {

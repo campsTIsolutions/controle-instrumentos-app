@@ -2,12 +2,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/historico_log_record.dart';
 
-class HistoricoRepository {
+abstract class HistoricoRepositoryContract {
+  Future<List<HistoricoLogRecord>> listarLogs();
+  Future<void> deletarLog(int idLog);
+}
+
+class HistoricoRepository implements HistoricoRepositoryContract {
   HistoricoRepository({SupabaseClient? client})
-      : _supabase = client ?? Supabase.instance.client;
+    : _supabase = client ?? Supabase.instance.client;
 
   final SupabaseClient _supabase;
 
+  @override
   Future<List<HistoricoLogRecord>> listarLogs() async {
     final response = await _supabase
         .from('logs')
@@ -27,6 +33,7 @@ class HistoricoRepository {
         .toList();
   }
 
+  @override
   Future<void> deletarLog(int idLog) async {
     await _supabase.from('logs').delete().eq('id_log', idLog);
   }

@@ -4,6 +4,29 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/aluno_record.dart';
 
+abstract class AlunosRepositoryContract {
+  Future<AlunosPageResult> listarAlunosPaginados({
+    required int page,
+    required int itemsPerPage,
+    String query = '',
+    List<String> categorias = const [],
+    List<String> setores = const [],
+    bool ordenarAlfabetico = false,
+  });
+
+  Future<void> salvarAluno({required Map<String, dynamic> dados, int? idAluno});
+
+  Future<String> uploadFotoAluno({
+    required List<int> bytes,
+    required String originalFileName,
+  });
+
+  Future<void> registrarExclusaoEDeletar({
+    required AlunoRecord aluno,
+    required String motivoExclusao,
+  });
+}
+
 class AlunosPageResult {
   const AlunosPageResult({
     required this.items,
@@ -16,15 +39,16 @@ class AlunosPageResult {
   final int page;
 }
 
-class AlunosRepository {
+class AlunosRepository implements AlunosRepositoryContract {
   AlunosRepository({SupabaseClient? client})
-      : _supabase = client ?? Supabase.instance.client;
+    : _supabase = client ?? Supabase.instance.client;
 
   final SupabaseClient _supabase;
 
   static const _selectFields =
       'id_aluno, numero_aluno, nome_completo, setor, categoria_usuario, nivel, telefone, imagem_url, idade';
 
+  @override
   Future<AlunosPageResult> listarAlunosPaginados({
     required int page,
     required int itemsPerPage,
@@ -60,11 +84,7 @@ class AlunosRepository {
       setores: setores,
     );
 
-    return AlunosPageResult(
-      items: items,
-      total: total,
-      page: normalizedPage,
-    );
+    return AlunosPageResult(items: items, total: total, page: normalizedPage);
   }
 
   Future<int> _countAlunos({
@@ -107,6 +127,7 @@ class AlunosRepository {
     return next;
   }
 
+  @override
   Future<void> salvarAluno({
     required Map<String, dynamic> dados,
     int? idAluno,
@@ -119,6 +140,7 @@ class AlunosRepository {
     await _supabase.from('alunos').update(dados).eq('id_aluno', idAluno);
   }
 
+  @override
   Future<String> uploadFotoAluno({
     required List<int> bytes,
     required String originalFileName,
@@ -127,8 +149,7 @@ class AlunosRepository {
         .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_')
         .replaceAll(' ', '_');
 
-    final objectPath =
-        '${DateTime.now().millisecondsSinceEpoch}_$safeFileName';
+    final objectPath = '${DateTime.now().millisecondsSinceEpoch}_$safeFileName';
 
     await _supabase.storage
         .from('alunos-fotos')
@@ -137,6 +158,7 @@ class AlunosRepository {
     return _supabase.storage.from('alunos-fotos').getPublicUrl(objectPath);
   }
 
+  @override
   Future<void> registrarExclusaoEDeletar({
     required AlunoRecord aluno,
     required String motivoExclusao,

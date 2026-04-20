@@ -10,14 +10,15 @@ import 'package:controle_instrumentos/shared/widgets/pagination_footer.dart';
 import 'package:controle_instrumentos/core/theme/theme.dart';
 
 class HistoricoPage extends StatefulWidget {
-  const HistoricoPage({super.key});
+  const HistoricoPage({super.key, this.repository});
+
+  final HistoricoRepositoryContract? repository;
 
   @override
   State<HistoricoPage> createState() => _HistoricoPageState();
 }
 
 class _HistoricoPageState extends State<HistoricoPage> {
-  final _historicoRepository = HistoricoRepository();
   final _searchDebouncer = Debouncer(delay: const Duration(milliseconds: 250));
   final _searchController = TextEditingController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -599,4 +600,10 @@ class _HistoricoPageState extends State<HistoricoPage> {
       ),
     );
   }
+
+  HistoricoRepositoryContract get _historicoRepository {
+    return widget.repository ?? _defaultRepository;
+  }
+
+  static final HistoricoRepository _defaultRepository = HistoricoRepository();
 }
