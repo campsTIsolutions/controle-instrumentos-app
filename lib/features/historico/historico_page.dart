@@ -7,6 +7,7 @@ import 'package:controle_instrumentos/features/historico/widgets/historico_filte
 import 'package:controle_instrumentos/features/historico/widgets/historico_log_detalhes_dialog.dart';
 import 'package:controle_instrumentos/features/historico/widgets/historico_logs_list.dart';
 import 'package:controle_instrumentos/shared/widgets/pagination_footer.dart';
+import 'package:controle_instrumentos/core/theme/theme.dart';
 
 class HistoricoPage extends StatefulWidget {
   const HistoricoPage({super.key});
@@ -301,14 +302,14 @@ class _HistoricoPageState extends State<HistoricoPage> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF2F3F5),
+      backgroundColor: AppColors.background,
       drawer: const AppDrawer(),
       appBar: AppBar(
         leading: IconButton(
           icon: SizedBox(
             width: 24,
             height: 24,
-            child: Image.asset("assets/menu-icon.png"),
+            child: Image.asset('assets/menu-icon.png'),
           ),
           onPressed: () {
             _scaffoldKey.currentState?.openDrawer();
@@ -318,9 +319,9 @@ class _HistoricoPageState extends State<HistoricoPage> {
           ),
         ),
         title: const Text(
-          "CAMPS",
+          'CAMPS',
           style: TextStyle(
-            color: Colors.black,
+            color: AppColors.textPrimary,
             fontSize: 25,
             fontWeight: FontWeight.bold,
           ),
@@ -338,48 +339,39 @@ class _HistoricoPageState extends State<HistoricoPage> {
             children: [
               // ── Cabeçalho ──────────────────────────────────────────────────
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.xxs,
+                ),
                 child: Row(
                   children: [
                     const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Histórico',
-                            style: TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1A1A2E),
-                            ),
-                          ),
+                          Text('Histórico', style: AppTextStyles.pageTitle),
                           SizedBox(height: 2),
                           Text(
                             'Alunos desligados e seus motivos',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF6B7280),
-                            ),
+                            style: AppTextStyles.sectionSubtitle,
                           ),
                         ],
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
+                        horizontal: AppSpacing.sm,
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1A1A2E),
-                        borderRadius: BorderRadius.circular(20),
+                        color: AppColors.surfaceDark,
+                        borderRadius: BorderRadius.circular(AppRadii.pill),
                       ),
                       child: Text(
                         '${_logs.length} registro${_logs.length != 1 ? 's' : ''}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: AppTextStyles.badge,
                       ),
                     ),
                   ],
@@ -414,8 +406,8 @@ class _HistoricoPageState extends State<HistoricoPage> {
               // ── Campo de busca ─────────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xxs,
                 ),
                 child: TextField(
                   controller: _searchController,
@@ -428,13 +420,18 @@ class _HistoricoPageState extends State<HistoricoPage> {
                   style: const TextStyle(color: Colors.black87),
                   decoration: InputDecoration(
                     hintText: 'Buscar por nome ou número...',
-                    hintStyle: const TextStyle(color: Colors.black38),
-                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                    hintStyle: const TextStyle(color: AppColors.textMuted),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: AppColors.textSecondary,
+                    ),
                     filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                    fillColor: AppColors.surface,
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.sm,
+                    ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(AppRadii.md),
                       borderSide: BorderSide.none,
                     ),
                   ),
@@ -446,7 +443,7 @@ class _HistoricoPageState extends State<HistoricoPage> {
               // ── Filtros horizontais ────────────────────────────────────────
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -558,9 +555,9 @@ class _HistoricoPageState extends State<HistoricoPage> {
                 ),
 
                 Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface,
                     borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(12),
                       bottomRight: Radius.circular(12),

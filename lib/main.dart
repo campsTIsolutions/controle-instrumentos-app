@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
+import 'core/theme/theme.dart';
 import 'features/alunos/alunos_page.dart';
 import 'features/chamada/tela_anual.dart';
 import 'features/historico/historico_page.dart';
@@ -37,13 +38,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Controle de Instrumentos',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4D00FF),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light,
       routes: {
         '/instrumentos': (_) => const InstrumentosPage(),
         '/alunos': (_) => const AlunosPage(),

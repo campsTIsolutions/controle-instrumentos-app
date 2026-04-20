@@ -7,6 +7,7 @@ import 'package:controle_instrumentos/features/alunos/widgets/alunos_list.dart';
 import 'package:controle_instrumentos/features/alunos/widgets/dialog_justificativa_exclusao.dart';
 import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
 import 'package:controle_instrumentos/shared/widgets/pagination_footer.dart';
+import 'package:controle_instrumentos/core/theme/theme.dart';
 import 'package:flutter/material.dart';
 
 class AlunosPage extends StatefulWidget {
@@ -58,10 +59,8 @@ class _AlunosPageState extends State<AlunosPage> {
     super.dispose();
   }
 
-  int get _totalPaginas => pageCount(
-    totalItems: _totalItens,
-    itemsPerPage: _itensPorPagina,
-  );
+  int get _totalPaginas =>
+      pageCount(totalItems: _totalItens, itemsPerPage: _itensPorPagina);
 
   Future<void> _carregarAlunos({int? page, bool showLoading = true}) async {
     final nextPage = page ?? _currentPage;
@@ -202,7 +201,7 @@ class _AlunosPageState extends State<AlunosPage> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF2F3F5),
+      backgroundColor: AppColors.background,
       drawer: const AppDrawer(),
       appBar: AppBar(
         leading: IconButton(
@@ -219,7 +218,7 @@ class _AlunosPageState extends State<AlunosPage> {
         title: const Text(
           'CAMPS',
           style: TextStyle(
-            color: Colors.black,
+            color: AppColors.textPrimary,
             fontSize: 25,
             fontWeight: FontWeight.bold,
           ),
@@ -236,18 +235,19 @@ class _AlunosPageState extends State<AlunosPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Padding(
-                padding: EdgeInsets.fromLTRB(16, 20, 16, 10),
-                child: Text(
-                  'Alunos',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A2E),
-                  ),
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.sm,
                 ),
+                child: Text('Alunos', style: AppTextStyles.pageTitle),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xxs,
+                ),
                 child: TextField(
                   controller: _searchController,
                   onChanged: (_) {
@@ -259,13 +259,18 @@ class _AlunosPageState extends State<AlunosPage> {
                   style: const TextStyle(color: Colors.black87),
                   decoration: InputDecoration(
                     hintText: 'Buscar aluno...',
-                    hintStyle: const TextStyle(color: Colors.black38),
-                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                    hintStyle: const TextStyle(color: AppColors.textMuted),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: AppColors.textSecondary,
+                    ),
                     filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                    fillColor: AppColors.surface,
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.sm,
+                    ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(AppRadii.md),
                       borderSide: BorderSide.none,
                     ),
                   ),
@@ -274,7 +279,7 @@ class _AlunosPageState extends State<AlunosPage> {
               const SizedBox(height: 8),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -283,17 +288,23 @@ class _AlunosPageState extends State<AlunosPage> {
                       children: [
                         const Text(
                           '',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(AppRadii.sm),
                             border: Border.all(
                               color: _ordenarAlfabetico
-                                  ? const Color(0xFF2563EB)
-                                  : const Color(0xFFE5E7EB),
+                                  ? AppColors.primary
+                                  : AppColors.border,
                             ),
                           ),
                           child: Row(
@@ -301,10 +312,13 @@ class _AlunosPageState extends State<AlunosPage> {
                             children: [
                               Checkbox(
                                 value: _ordenarAlfabetico,
-                                activeColor: const Color(0xFF2563EB),
-                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                activeColor: AppColors.primary,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
                                 onChanged: (v) async {
-                                  setState(() => _ordenarAlfabetico = v ?? false);
+                                  setState(
+                                    () => _ordenarAlfabetico = v ?? false,
+                                  );
                                   await _aplicarFiltrosServidor();
                                 },
                               ),
@@ -349,14 +363,19 @@ class _AlunosPageState extends State<AlunosPage> {
                                 await _aplicarFiltrosServidor();
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.sm,
+                                  ),
                                   border: Border.all(
                                     color: selecionado
-                                        ? const Color(0xFF2563EB)
-                                        : const Color(0xFFE5E7EB),
+                                        ? AppColors.primary
+                                        : AppColors.border,
                                   ),
                                 ),
                                 child: Row(
@@ -366,7 +385,8 @@ class _AlunosPageState extends State<AlunosPage> {
                                       value: selecionado,
                                       onChanged: (value) async {
                                         setState(() {
-                                          if (value == true && !_filtroCategoria.contains(cat)) {
+                                          if (value == true &&
+                                              !_filtroCategoria.contains(cat)) {
                                             _filtroCategoria.add(cat);
                                           } else {
                                             _filtroCategoria.remove(cat);
@@ -374,13 +394,17 @@ class _AlunosPageState extends State<AlunosPage> {
                                         });
                                         await _aplicarFiltrosServidor();
                                       },
-                                      activeColor: const Color(0xFF2563EB),
+                                      activeColor: AppColors.primary,
                                       checkColor: Colors.white,
-                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     Text(
                                       cat,
-                                      style: const TextStyle(color: Colors.black, fontSize: 13),
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -418,14 +442,19 @@ class _AlunosPageState extends State<AlunosPage> {
                                 await _aplicarFiltrosServidor();
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.sm,
+                                  ),
                                   border: Border.all(
                                     color: selecionado
-                                        ? const Color(0xFF2563EB)
-                                        : const Color(0xFFE5E7EB),
+                                        ? AppColors.primary
+                                        : AppColors.border,
                                   ),
                                 ),
                                 child: Row(
@@ -435,7 +464,8 @@ class _AlunosPageState extends State<AlunosPage> {
                                       value: selecionado,
                                       onChanged: (value) async {
                                         setState(() {
-                                          if (value == true && !_filtroSetor.contains(setor)) {
+                                          if (value == true &&
+                                              !_filtroSetor.contains(setor)) {
                                             _filtroSetor.add(setor);
                                           } else {
                                             _filtroSetor.remove(setor);
@@ -443,13 +473,17 @@ class _AlunosPageState extends State<AlunosPage> {
                                         });
                                         await _aplicarFiltrosServidor();
                                       },
-                                      activeColor: const Color(0xFF2563EB),
+                                      activeColor: AppColors.primary,
                                       checkColor: Colors.white,
-                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize.shrinkWrap,
                                     ),
                                     Text(
                                       setor,
-                                      style: const TextStyle(color: Colors.black, fontSize: 13),
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -507,7 +541,8 @@ class _AlunosPageState extends State<AlunosPage> {
                     totalLabel: '$_totalItens alunos',
                     currentPage: _currentPage,
                     totalPages: _totalPaginas,
-                    onFirstPage: () => _carregarAlunos(page: 1, showLoading: false),
+                    onFirstPage: () =>
+                        _carregarAlunos(page: 1, showLoading: false),
                     onPreviousPage: () => _carregarAlunos(
                       page: (_currentPage - 1).clamp(1, _totalPaginas),
                       showLoading: false,
@@ -529,13 +564,18 @@ class _AlunosPageState extends State<AlunosPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _isSalvando || _isExcluindo ? null : () => _abrirDialogAluno(),
-        backgroundColor: const Color(0xFF2563EB),
+        onPressed: _isSalvando || _isExcluindo
+            ? null
+            : () => _abrirDialogAluno(),
+        backgroundColor: AppColors.primary,
         child: _isSalvando
             ? const SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               )
             : const Icon(Icons.add, color: Colors.white),
       ),

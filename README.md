@@ -43,3 +43,42 @@ Para celulares Android atuais, normalmente use `arm64-v8a`.
 3. Gere novamente o APK release.
 
 Quando `android/key.properties` nao existir, o projeto usa assinatura debug como fallback.
+
+## Padronizacao de codigo e UI
+
+### Estrutura por feature
+
+Use o padrao abaixo dentro de `lib/features/<feature>/`:
+
+- `models/`
+- `repository/`
+- `widgets/`
+- `<feature>_page.dart`
+
+Evite colocar acesso a dados direto na page; prefira concentrar no `repository`.
+
+### Design tokens (obrigatorio para telas novas)
+
+Use os tokens centrais em `lib/core/theme/`:
+
+- `AppColors`
+- `AppSpacing`
+- `AppRadii`
+- `AppTextStyles`
+
+Evite valores hardcoded de `Color(...)`, espacamentos e fontes diretamente nas telas.
+
+### Checklist antes de PR/merge
+
+1. Tela usa tokens de `core/theme`.
+2. UI evita `Map<String, dynamic>` quando houver model da feature.
+3. Estado async cobre loading/saving/error com feedback visual.
+4. `dart format .`
+5. `flutter analyze`
+
+### Comandos de validacao
+
+```bash
+dart format .
+flutter analyze
+```
