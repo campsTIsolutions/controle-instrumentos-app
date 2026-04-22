@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class InstrumentoText extends StatelessWidget {
   const InstrumentoText({
+    super.key,
     required this.label,
     required this.controller,
     this.hint,

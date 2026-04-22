@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
+import 'package:controle_instrumentos/shared/widgets/profile_menu_button.dart';
 import 'supabase_service.dart';
 import 'tela_mes.dart';
 
@@ -30,15 +31,33 @@ class _TelaAnualState extends State<TelaAnual> {
   bool _carregando = false;
 
   static const List<String> _nomesMeses = [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril',
-    'Maio', 'Junho', 'Julho', 'Agosto',
-    'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+    'Janeiro',
+    'Fevereiro',
+    'Março',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro',
   ];
 
   static const List<String> _abrevMeses = [
-    'Jan', 'Fev', 'Mar', 'Abr',
-    'Mai', 'Jun', 'Jul', 'Ago',
-    'Set', 'Out', 'Nov', 'Dez',
+    'Jan',
+    'Fev',
+    'Mar',
+    'Abr',
+    'Mai',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Set',
+    'Out',
+    'Nov',
+    'Dez',
   ];
 
   @override
@@ -111,25 +130,27 @@ class _TelaAnualState extends State<TelaAnual> {
       elevation: 0,
       surfaceTintColor: Colors.transparent,
       leading: IconButton(
-        icon: const Icon(Icons.menu, color: Colors.black87),
+        icon: SizedBox(
+          width: 24,
+          height: 24,
+          child: Image.asset('assets/menu-icon.png'),
+        ),
         onPressed: () => _scaffoldKey.currentState?.openDrawer(),
       ),
       title: const Text(
         'CAMPS',
         style: TextStyle(
-          color: Colors.black87,
-          fontWeight: FontWeight.w600,
-          fontSize: 20,
-          letterSpacing: 1.2,
+          color: Colors.black,
+          fontSize: 25,
+          fontWeight: FontWeight.bold,
         ),
       ),
-      actions: [
-        // ── Dropdown de ano ────────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: _buildDropdownAno(),
-        ),
-      ],
+      centerTitle: true,
+      bottom: const PreferredSize(
+        preferredSize: Size.fromHeight(1),
+        child: Divider(height: 1, color: Colors.grey),
+      ),
+      actions: const [ProfileMenuButton()],
     );
   }
 
@@ -138,29 +159,31 @@ class _TelaAnualState extends State<TelaAnual> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF1976D2).withOpacity(0.08),
+        color: const Color(0xFF1976D2).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-            color: const Color(0xFF1976D2).withOpacity(0.35), width: 0.8),
+          color: const Color(0xFF1976D2).withValues(alpha: 0.35),
+          width: 0.8,
+        ),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
           value: _anoSelecionado,
           isDense: true,
-          icon: const Icon(Icons.keyboard_arrow_down,
-              size: 16, color: Color(0xFF1976D2)),
+          icon: const Icon(
+            Icons.keyboard_arrow_down,
+            size: 16,
+            color: Color(0xFF1976D2),
+          ),
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: Color(0xFF1976D2),
           ),
-          items: List.generate(
-            _anoMax - _anoMin + 1,
-            (i) {
-              final ano = _anoMin + i;
-              return DropdownMenuItem(value: ano, child: Text('$ano'));
-            },
-          ),
+          items: List.generate(_anoMax - _anoMin + 1, (i) {
+            final ano = _anoMin + i;
+            return DropdownMenuItem(value: ano, child: Text('$ano'));
+          }),
           onChanged: (novoAno) {
             if (novoAno == null || novoAno == _anoSelecionado) return;
             setState(() {
@@ -175,71 +198,95 @@ class _TelaAnualState extends State<TelaAnual> {
   }
 
   Widget _buildBody() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 12),
-            child: Row(
-              children: [
-                Text(
-                  '$_anoSelecionado',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade600,
-                    letterSpacing: 0.4,
-                  ),
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          24 + MediaQuery.of(context).padding.bottom,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4, right: 4, bottom: 8),
+              child: Text(
+                'Chamada',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade900,
                 ),
-                if (_carregando) ...[
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.5,
-                      color: Colors.grey.shade400,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 4, right: 4, bottom: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Text(
+                          '$_anoSelecionado',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey.shade600,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                        if (_carregando) ...[
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: Colors.grey.shade400,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                  _buildDropdownAno(),
                 ],
-              ],
+              ),
             ),
-          ),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.1,
-            ),
-            itemCount: 12,
-            itemBuilder: (context, index) {
-              final mes = index + 1;
-              final numAulas = _aulasPorMes[mes] ?? 0;
-              final temDados = numAulas > 0;
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 1.1,
+              ),
+              itemCount: 12,
+              itemBuilder: (context, index) {
+                final mes = index + 1;
+                final numAulas = _aulasPorMes[mes] ?? 0;
+                final temDados = numAulas > 0;
 
-              return _MesCard(
-                abrev: _abrevMeses[index],
-                numAulas: numAulas,
-                temDados: temDados,
-                onTap: () => _abrirMes(mes),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              'Toque em um mês para abrir a chamada',
-              style:
-                  TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                return _MesCard(
+                  abrev: _abrevMeses[index],
+                  numAulas: numAulas,
+                  temDados: temDados,
+                  onTap: () => _abrirMes(mes),
+                );
+              },
             ),
-          ),
-          const SizedBox(height: 20),
-        ],
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                'Toque em um mês para abrir a chamada',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
@@ -270,13 +317,13 @@ class _MesCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: temDados
-                ? const Color(0xFF1976D2).withOpacity(0.35)
+                ? const Color(0xFF1976D2).withValues(alpha: 0.35)
                 : Colors.grey.shade200,
             width: 0.8,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 4,
               offset: const Offset(0, 1),
             ),
@@ -290,20 +337,13 @@ class _MesCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: temDados
-                    ? const Color(0xFF1976D2)
-                    : Colors.black87,
+                color: temDados ? const Color(0xFF1976D2) : Colors.black87,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              numAulas == 0
-                  ? '—'
-                  : '$numAulas aula${numAulas > 1 ? 's' : ''}',
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey.shade500,
-              ),
+              numAulas == 0 ? '—' : '$numAulas aula${numAulas > 1 ? 's' : ''}',
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
             ),
             const SizedBox(height: 6),
             AnimatedContainer(
@@ -312,9 +352,7 @@ class _MesCard extends StatelessWidget {
               height: 6,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: temDados
-                    ? const Color(0xFF1976D2)
-                    : Colors.transparent,
+                color: temDados ? const Color(0xFF1976D2) : Colors.transparent,
               ),
             ),
           ],

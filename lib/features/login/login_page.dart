@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Importação do Supabase
 import 'register_page.dart'; // Certifique-se de criar este arquivo
-import 'package:controle_instrumentos/features/alunos/alunos_page.dart';
-import '../instrumentos/ui/instrumentos_page.dart';
 import '../instrumentos/ui/instrumentos_page.dart';
 import 'forgot_password_page.dart'; // ADICIONADO: Import da sua nova página
 
@@ -14,6 +12,8 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  static const _royalBlue = Color(0xFF2563EB);
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false; // Para mostrar um carregamento no botão
@@ -43,12 +43,6 @@ class _LoginPageState extends State<LoginPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Login realizado com sucesso!")),
         );
-        Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-        builder: (context) => const InstrumentosPage(),
-    ),
-  );
       }
     } catch (e) {
       if (mounted) {
@@ -67,17 +61,11 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.center,
-            radius: 1.0,
-            colors: [Color(0xFF2D0066), Colors.black],
-          ),
-        ),
+        decoration: const BoxDecoration(color: Colors.white),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -152,16 +140,14 @@ class _LoginPageState extends State<LoginPage> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _handleLogin,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4D00FF),
+                          backgroundColor: _royalBlue,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 20),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                           elevation: 15,
-                          shadowColor: const Color(
-                            0xFF4D00FF,
-                          ).withValues(alpha: 0.5),
+                          shadowColor: _royalBlue.withValues(alpha: 0.5),
                         ),
                         child: _isLoading
                             ? const SizedBox(
@@ -201,7 +187,7 @@ class _LoginPageState extends State<LoginPage> {
                           child: const Text(
                             "Cadastre-se",
                             style: TextStyle(
-                              color: Color(0xFF4D00FF),
+                              color: _royalBlue,
                               fontWeight: FontWeight.bold,
                               decoration: TextDecoration.underline,
                             ),
@@ -241,7 +227,7 @@ class _LoginPageState extends State<LoginPage> {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4D00FF).withValues(alpha: 0.2),
+            color: _royalBlue.withValues(alpha: 0.2),
             blurRadius: 10,
             spreadRadius: 1,
           ),
