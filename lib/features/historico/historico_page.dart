@@ -7,6 +7,7 @@ import 'package:controle_instrumentos/features/historico/widgets/historico_filte
 import 'package:controle_instrumentos/features/historico/widgets/historico_log_detalhes_dialog.dart';
 import 'package:controle_instrumentos/features/historico/widgets/historico_logs_list.dart';
 import 'package:controle_instrumentos/shared/widgets/pagination_footer.dart';
+import 'package:controle_instrumentos/shared/widgets/profile_menu_button.dart';
 import 'package:controle_instrumentos/core/theme/theme.dart';
 
 class HistoricoPage extends StatefulWidget {
@@ -332,6 +333,7 @@ class _HistoricoPageState extends State<HistoricoPage> {
           preferredSize: Size.fromHeight(1),
           child: Divider(height: 1, color: Colors.grey),
         ),
+        actions: const [ProfileMenuButton()],
       ),
       body: SafeArea(
         child: SingleChildScrollView(

@@ -63,7 +63,12 @@ class InstrumentosContent extends StatelessWidget {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.fromLTRB(
+        12,
+        12,
+        12,
+        120 + MediaQuery.of(context).padding.bottom,
+      ),
       itemCount: instrumentosFiltrados.length,
       itemBuilder: (context, index) {
         final item = instrumentosFiltrados[index];

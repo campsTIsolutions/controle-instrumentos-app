@@ -9,6 +9,8 @@ class SimpleForgotPage extends StatefulWidget {
 }
 
 class _SimpleForgotPageState extends State<SimpleForgotPage> {
+  static const _royalBlue = Color(0xFF2563EB);
+
   final _emailController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _adminKeyController = TextEditingController();
@@ -131,11 +133,11 @@ class _SimpleForgotPageState extends State<SimpleForgotPage> {
               ),
               const SizedBox(height: 30),
               _isLoading
-                  ? const CircularProgressIndicator(color: Color(0xFF4D00FF))
+                  ? const CircularProgressIndicator(color: _royalBlue)
                   : ElevatedButton(
                       onPressed: _handleReset,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4D00FF),
+                        backgroundColor: _royalBlue,
                         minimumSize: const Size(double.infinity, 55),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),

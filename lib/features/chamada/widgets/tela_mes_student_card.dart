@@ -1,4 +1,5 @@
 import 'package:controle_instrumentos/features/chamada/models.dart';
+import 'package:controle_instrumentos/features/chamada/atestado_utils.dart';
 import 'package:flutter/material.dart';
 
 class CardAlunoMes extends StatelessWidget {
@@ -107,7 +108,10 @@ class CardAlunoMes extends StatelessWidget {
               final status =
                   student.attendance[dataKey]?.first ?? AttendanceStatus.none;
               final temAtestado = status == AttendanceStatus.A;
-              final arquivoNome = student.atestadoNome[dataKey];
+              final arquivoNomeRef = student.atestadoNome[dataKey];
+              final arquivoNome = arquivoNomeRef == null
+                  ? null
+                  : extrairNomeArquivoAtestado(arquivoNomeRef);
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),

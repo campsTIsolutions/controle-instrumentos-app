@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
+import 'package:controle_instrumentos/shared/widgets/profile_menu_button.dart';
 import 'models.dart';
 import 'supabase_service.dart';
 import 'tela_atestado.dart';
@@ -244,78 +245,46 @@ class _TelaMesState extends State<TelaMes> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.black87),
+          icon: SizedBox(
+            width: 24,
+            height: 24,
+            child: Image.asset('assets/menu-icon.png'),
+          ),
           onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${widget.nomesMes} ${widget.ano}',
-              style: const TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-            Text(
-              '${_dates.length} data${_dates.length != 1 ? 's' : ''} · ${_students.length} aluno${_students.length != 1 ? 's' : ''}',
-              style: const TextStyle(
-                color: Colors.black45,
-                fontSize: 11,
-                fontWeight: FontWeight.normal,
-              ),
-            ),
-          ],
+        title: const Text(
+          'CAMPS',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black87),
-            onPressed: () => Navigator.pop(context),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: FloatingActionButton.small(
-              onPressed: _adicionarData,
-              backgroundColor: _azul,
-              elevation: 0,
-              child: const Icon(Icons.add, color: Colors.white),
-            ),
-          ),
-        ],
+        centerTitle: true,
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: Colors.grey),
+        ),
+        actions: const [ProfileMenuButton()],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: _azul))
-          : _students.isEmpty
-          ? _buildVazio()
-          : _buildConteudo(),
-    );
-  }
-
-  Widget _buildVazio() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.people_outline, size: 56, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          Text(
-            'Nenhum aluno cadastrado.',
-            style: TextStyle(
-              fontSize: 15,
-              color: Colors.grey.shade500,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
+          : SafeArea(child: _buildConteudo()),
     );
   }
 
   Widget _buildConteudo() {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        36 + MediaQuery.of(context).padding.bottom,
+      ),
       children: [
+        _buildCabecalhoMes(),
+        const SizedBox(height: 20),
+
         // ── Chips de datas ──────────────────────────────────────────────────
         _buildSecaoTitulo('DATAS DE AULA'),
         const SizedBox(height: 8),
@@ -339,24 +308,86 @@ class _TelaMesState extends State<TelaMes> {
         // ── Lista de alunos ─────────────────────────────────────────────────
         _buildSecaoTitulo('ALUNOS'),
         const SizedBox(height: 8),
-        ..._students.map(
-          (student) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: CardAlunoMes(
-              student: student,
-              dates: _dates,
-              aulasDoMes: _aulasDoMes,
-              onSetStatus: (date, status) => _setStatus(student, date, status),
-              onAnexarAtestado: (date) => _abrirAtestado(student, date),
-              soData: _soData,
+        if (_students.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.people_outline,
+                    size: 56,
+                    color: Colors.grey.shade300,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Nenhum aluno cadastrado.',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey.shade500,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ..._students.map(
+            (student) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: CardAlunoMes(
+                student: student,
+                dates: _dates,
+                aulasDoMes: _aulasDoMes,
+                onSetStatus: (date, status) =>
+                    _setStatus(student, date, status),
+                onAnexarAtestado: (date) => _abrirAtestado(student, date),
+                soData: _soData,
+              ),
             ),
           ),
-        ),
 
         const SizedBox(height: 16),
         // ── Legenda ─────────────────────────────────────────────────────────
         _buildLegenda(),
         const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildCabecalhoMes() {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${widget.nomesMes} ${widget.ano}',
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              Text(
+                '${_dates.length} data${_dates.length != 1 ? 's' : ''} · ${_students.length} aluno${_students.length != 1 ? 's' : ''}',
+                style: const TextStyle(
+                  color: Colors.black45,
+                  fontSize: 11,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          tooltip: 'Voltar',
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
       ],
     );
   }
@@ -412,7 +443,7 @@ class _TelaMesState extends State<TelaMes> {
         builder: (_) => TelaAtestado(
           student: student,
           data: dataKey,
-          onAnexado: (nome) async {
+          onAnexado: (comprovanteUrl) async {
             try {
               final aulaId = _aulasDoMes
                   .firstWhere((a) => _soData(a.data) == dataKey)
@@ -421,9 +452,9 @@ class _TelaMesState extends State<TelaMes> {
                 aulaId: aulaId,
                 idAluno: student.idAluno,
                 status: AttendanceStatus.A,
-                comprovanteUrl: nome,
+                comprovanteUrl: comprovanteUrl,
               );
-              setState(() => student.atestadoNome[dataKey] = nome);
+              setState(() => student.atestadoNome[dataKey] = comprovanteUrl);
             } catch (e) {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(

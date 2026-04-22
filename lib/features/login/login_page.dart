@@ -12,6 +12,8 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  static const _royalBlue = Color(0xFF2563EB);
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false; // Para mostrar um carregamento no botão
@@ -138,16 +140,14 @@ class _LoginPageState extends State<LoginPage> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _handleLogin,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4D00FF),
+                          backgroundColor: _royalBlue,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 20),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                           elevation: 15,
-                          shadowColor: const Color(
-                            0xFF4D00FF,
-                          ).withValues(alpha: 0.5),
+                          shadowColor: _royalBlue.withValues(alpha: 0.5),
                         ),
                         child: _isLoading
                             ? const SizedBox(
@@ -187,7 +187,7 @@ class _LoginPageState extends State<LoginPage> {
                           child: const Text(
                             "Cadastre-se",
                             style: TextStyle(
-                              color: Color(0xFF4D00FF),
+                              color: _royalBlue,
                               fontWeight: FontWeight.bold,
                               decoration: TextDecoration.underline,
                             ),
@@ -227,7 +227,7 @@ class _LoginPageState extends State<LoginPage> {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF4D00FF).withValues(alpha: 0.2),
+            color: _royalBlue.withValues(alpha: 0.2),
             blurRadius: 10,
             spreadRadius: 1,
           ),

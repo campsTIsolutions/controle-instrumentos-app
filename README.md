@@ -126,6 +126,7 @@ Pastas logicas:
 
 - fotos de alunos em `alunos/...`
 - imagens de instrumentos em `instrumentos/...`
+- comprovantes de atestado em `atestados/<id_aluno>/<yyyy-mm-dd>/...`
 
 Configuracao centralizada em: [storage_paths.dart](/home/murilo/controle_instrumentos/lib/core/config/storage_paths.dart)
 
@@ -168,7 +169,7 @@ create policy storage_insert_alunos_fotos_auth
 on storage.objects for insert to authenticated
 with check (
   bucket_id = 'alunos-fotos'
-  and (storage.foldername(name))[1] in ('alunos', 'instrumentos')
+  and (storage.foldername(name))[1] in ('alunos', 'instrumentos', 'atestados')
 );
 ```
 

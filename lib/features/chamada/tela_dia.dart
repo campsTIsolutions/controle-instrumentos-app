@@ -5,6 +5,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
+import 'package:controle_instrumentos/shared/widgets/profile_menu_button.dart';
+import 'atestado_utils.dart';
 import 'models.dart';
 import 'widgets.dart';
 import 'supabase_service.dart';
@@ -17,12 +19,7 @@ class TelaDia extends StatefulWidget {
   final List<StudentRecord>? students;
   final VoidCallback? onChanged;
 
-  const TelaDia({
-    super.key,
-    required this.aula,
-    this.students,
-    this.onChanged,
-  });
+  const TelaDia({super.key, required this.aula, this.students, this.onChanged});
 
   @override
   State<TelaDia> createState() => _TelaDiaState();
@@ -116,10 +113,10 @@ class _TelaDiaState extends State<TelaDia> {
         builder: (_) => TelaAtestado(
           student: _students[si],
           data: _dataKey, // FIX: passa _dataKey normalizado
-          onAnexado: (nomeArquivo) {
+          onAnexado: (comprovanteUrl) async {
             setState(() {
               // FIX: usa _dataKey normalizado
-              _students[si].atestadoNome[_dataKey] = nomeArquivo;
+              _students[si].atestadoNome[_dataKey] = comprovanteUrl;
               _temAlteracoes = true;
             });
             widget.onChanged?.call();
@@ -185,31 +182,33 @@ class _TelaDiaState extends State<TelaDia> {
       backgroundColor: Colors.grey.shade100,
       appBar: _buildAppBar(),
       body: _carregando
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF1976D2)))
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF1976D2)),
+            )
           : _erro != null
-              ? _buildErro()
-              : Column(
-                  children: [
-                    Expanded(
-                      child: _students.isEmpty
-                          ? _buildVazio()
-                          : ListView.separated(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _students.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 10),
-                              itemBuilder: (context, si) => _CardAluno(
-                                student: _students[si],
-                                data: _dataKey, // FIX: passa _dataKey normalizado
-                                onSetStatus: (ri, status) =>
-                                    _setStatus(si, ri, status),
-                                onAbrirAtestado: () => _abrirAtestado(si),
-                              ),
-                            ),
-                    ),
-                    _buildBotaoSalvar(),
-                  ],
+          ? _buildErro()
+          : Column(
+              children: [
+                Expanded(
+                  child: _students.isEmpty
+                      ? _buildVazio()
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _students.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (context, si) => _CardAluno(
+                            student: _students[si],
+                            data: _dataKey, // FIX: passa _dataKey normalizado
+                            onSetStatus: (ri, status) =>
+                                _setStatus(si, ri, status),
+                            onAbrirAtestado: () => _abrirAtestado(si),
+                          ),
+                        ),
                 ),
+                _buildBotaoSalvar(),
+              ],
+            ),
     );
   }
 
@@ -228,20 +227,23 @@ class _TelaDiaState extends State<TelaDia> {
           const Text(
             'Chamada do dia',
             style: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-                fontSize: 16),
+              color: Colors.black87,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
           ),
           Text(
             _formatDate(_dataKey),
             style: const TextStyle(
-                color: Colors.black45,
-                fontSize: 11,
-                fontWeight: FontWeight.normal),
+              color: Colors.black45,
+              fontSize: 11,
+              fontWeight: FontWeight.normal,
+            ),
           ),
         ],
       ),
       actions: [
+        const ProfileMenuButton(),
         IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
           onPressed: () {
@@ -256,20 +258,19 @@ class _TelaDiaState extends State<TelaDia> {
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: const Color(0xFFFFC107).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
-                border:
-                    Border.all(color: const Color(0xFFFFC107), width: 0.8),
+                border: Border.all(color: const Color(0xFFFFC107), width: 0.8),
               ),
               child: const Text(
                 'Não salvo',
                 style: TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFFE65100),
-                    fontWeight: FontWeight.w600),
+                  fontSize: 10,
+                  color: Color(0xFFE65100),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -284,16 +285,19 @@ class _TelaDiaState extends State<TelaDia> {
         children: [
           Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
           const SizedBox(height: 12),
-          Text(_erro!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.black54)),
+          Text(
+            _erro!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.black54),
+          ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _carregarAlunos,
             icon: const Icon(Icons.refresh),
             label: const Text('Tentar novamente'),
             style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF1976D2)),
+              backgroundColor: const Color(0xFF1976D2),
+            ),
           ),
         ],
       ),
@@ -310,8 +314,11 @@ class _TelaDiaState extends State<TelaDia> {
           Text(
             'Nenhum aluno cadastrado.\nCadastre alunos na tela do mês.',
             textAlign: TextAlign.center,
-            style:
-                TextStyle(fontSize: 14, color: Colors.grey.shade500, height: 1.5),
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+              height: 1.5,
+            ),
           ),
         ],
       ),
@@ -325,12 +332,12 @@ class _TelaDiaState extends State<TelaDia> {
       builder: (ctx) => AlertDialog(
         title: const Text('Alterações não salvas'),
         content: const Text(
-            'Você tem alterações que não foram salvas. O que deseja fazer?'),
+          'Você tem alterações que não foram salvas. O que deseja fazer?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'descartar'),
-            child: const Text('Descartar',
-                style: TextStyle(color: Colors.red)),
+            child: const Text('Descartar', style: TextStyle(color: Colors.red)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'cancelar'),
@@ -339,7 +346,8 @@ class _TelaDiaState extends State<TelaDia> {
           FilledButton(
             onPressed: () => Navigator.pop(ctx, 'salvar'),
             style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF1976D2)),
+              backgroundColor: const Color(0xFF1976D2),
+            ),
             child: const Text('Salvar'),
           ),
         ],
@@ -377,13 +385,14 @@ class _TelaDiaState extends State<TelaDia> {
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Icon(Icons.save_outlined, size: 18),
           label: Text(
             _salvando ? 'Salvando...' : 'Salvar chamada',
-            style: const TextStyle(
-                fontSize: 15, fontWeight: FontWeight.w600),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
           style: FilledButton.styleFrom(
             backgroundColor: _temAlteracoes
@@ -420,7 +429,10 @@ class _CardAluno extends StatelessWidget {
     // data já chega normalizado via _dataKey, sem risco de fuso
     final statuses = student.attendance[data] ?? [AttendanceStatus.none];
     final temAtestado = statuses.contains(AttendanceStatus.A);
-    final arquivoNome = student.atestadoNome[data];
+    final arquivoNomeRef = student.atestadoNome[data];
+    final arquivoNome = arquivoNomeRef == null
+        ? null
+        : extrairNomeArquivoAtestado(arquivoNomeRef);
 
     return Container(
       decoration: BoxDecoration(
@@ -428,9 +440,10 @@ class _CardAluno extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 6,
-              offset: const Offset(0, 2)),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       padding: const EdgeInsets.all(14),
@@ -442,14 +455,16 @@ class _CardAluno extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 18,
-                backgroundColor:
-                    const Color(0xFF1976D2).withValues(alpha: 0.12),
+                backgroundColor: const Color(
+                  0xFF1976D2,
+                ).withValues(alpha: 0.12),
                 child: Text(
                   student.name[0].toUpperCase(),
                   style: const TextStyle(
-                      color: Color(0xFF1976D2),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14),
+                    color: Color(0xFF1976D2),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -457,32 +472,37 @@ class _CardAluno extends StatelessWidget {
                 child: Text(
                   student.name,
                   style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
                 ),
               ),
               // Pills de resumo dos status selecionados
               ...statuses
                   .where((s) => s != AttendanceStatus.none)
-                  .map((s) => Padding(
-                        padding: const EdgeInsets.only(left: 4),
-                        child: Container(
-                          width: 28,
-                          height: 20,
-                          decoration: BoxDecoration(
-                              color: s.backgroundColor,
-                              borderRadius: BorderRadius.circular(10)),
-                          alignment: Alignment.center,
-                          child: Text(
-                            s.label,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11),
+                  .map(
+                    (s) => Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Container(
+                        width: 28,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: s.backgroundColor,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          s.label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
                           ),
                         ),
-                      )),
+                      ),
+                    ),
+                  ),
             ],
           ),
           const SizedBox(height: 14),
@@ -492,44 +512,43 @@ class _CardAluno extends StatelessWidget {
             statuses.length,
             (ri) => Padding(
               padding: EdgeInsets.only(
-                  bottom: ri < statuses.length - 1 ? 10 : 0),
+                bottom: ri < statuses.length - 1 ? 10 : 0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (statuses.length > 1)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
-                      child: Text('Aula ${ri + 1}',
-                          style: const TextStyle(
-                              fontSize: 11, color: Colors.black45)),
+                      child: Text(
+                        'Aula ${ri + 1}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.black45,
+                        ),
+                      ),
                     ),
                   Row(
                     children: [
                       BotaoStatus(
                         label: 'P',
                         cor: const Color(0xFF4CAF50),
-                        selecionado:
-                            statuses[ri] == AttendanceStatus.P,
-                        onTap: () =>
-                            onSetStatus(ri, AttendanceStatus.P),
+                        selecionado: statuses[ri] == AttendanceStatus.P,
+                        onTap: () => onSetStatus(ri, AttendanceStatus.P),
                       ),
                       const SizedBox(width: 8),
                       BotaoStatus(
                         label: 'F',
                         cor: const Color(0xFFE53935),
-                        selecionado:
-                            statuses[ri] == AttendanceStatus.F,
-                        onTap: () =>
-                            onSetStatus(ri, AttendanceStatus.F),
+                        selecionado: statuses[ri] == AttendanceStatus.F,
+                        onTap: () => onSetStatus(ri, AttendanceStatus.F),
                       ),
                       const SizedBox(width: 8),
                       BotaoStatus(
                         label: 'Atestado',
                         cor: const Color(0xFFFFC107),
-                        selecionado:
-                            statuses[ri] == AttendanceStatus.A,
-                        onTap: () =>
-                            onSetStatus(ri, AttendanceStatus.A),
+                        selecionado: statuses[ri] == AttendanceStatus.A,
+                        onTap: () => onSetStatus(ri, AttendanceStatus.A),
                       ),
                     ],
                   ),
@@ -559,19 +578,20 @@ class _CardAluno extends StatelessWidget {
                   child: Text(
                     arquivoNome ?? 'Nenhum comprovante anexado',
                     style: TextStyle(
-                        fontSize: 12,
-                        color: arquivoNome != null
-                            ? const Color(0xFF4CAF50)
-                            : Colors.black45),
+                      fontSize: 12,
+                      color: arquivoNome != null
+                          ? const Color(0xFF4CAF50)
+                          : Colors.black45,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 TextButton(
                   onPressed: onAbrirAtestado,
                   style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFFFC107),
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 8)),
+                    foregroundColor: const Color(0xFFFFC107),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
                   child: Text(
                     arquivoNome != null ? 'Trocar' : 'Anexar',
                     style: const TextStyle(fontSize: 12),

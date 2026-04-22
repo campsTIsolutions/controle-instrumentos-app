@@ -48,54 +48,73 @@ class InstrumentosFiltersBar extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
+              Expanded(
+                child: InkWell(
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 32,
-                      height: 32,
-                      child: Checkbox(
-                        value: ordenarAlfabetico,
-                        activeColor: const Color(0xFF2563EB),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        onChanged: (v) =>
-                            onOrdenarAlfabeticoChanged(v ?? false),
+                  onTap: () => onOrdenarAlfabeticoChanged(!ordenarAlfabetico),
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: ordenarAlfabetico
+                          ? const Color(0xFFEFF6FF)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: ordenarAlfabetico
+                            ? const Color(0xFF2563EB)
+                            : const Color(0xFFE5E7EB),
                       ),
                     ),
-                    const Text(
-                      'A-Z',
-                      style: TextStyle(fontSize: 13, color: Color(0xFF374151)),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.sort_by_alpha,
+                          size: 15,
+                          color: ordenarAlfabetico
+                              ? const Color(0xFF2563EB)
+                              : const Color(0xFF374151),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'A-Z',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: ordenarAlfabetico
+                                ? const Color(0xFF2563EB)
+                                : const Color(0xFF374151),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 10),
-              InstrumentosFiltroDropdown(
-                hint: 'Propriedade',
-                valor: filtroPropriedade,
-                opcoes: propriedades,
-                onChanged: onFiltroPropriedadeChanged,
-                onLimpar: () => onFiltroPropriedadeChanged(null),
+              const SizedBox(width: 5),
+              Expanded(
+                child: InstrumentosFiltroDropdown(
+                  hint: 'Prop.',
+                  valor: filtroPropriedade,
+                  opcoes: propriedades,
+                  onChanged: onFiltroPropriedadeChanged,
+                  onLimpar: () => onFiltroPropriedadeChanged(null),
+                ),
               ),
-              const SizedBox(width: 10),
-              InstrumentosFiltroDropdown(
-                hint: 'Status',
-                valor: filtroStatus,
-                opcoes: statusDisponibilidade,
-                onChanged: onFiltroStatusChanged,
-                onLimpar: () => onFiltroStatusChanged(null),
+              const SizedBox(width: 5),
+              Expanded(
+                child: InstrumentosFiltroDropdown(
+                  hint: 'Status',
+                  valor: filtroStatus,
+                  opcoes: statusDisponibilidade,
+                  onChanged: onFiltroStatusChanged,
+                  onLimpar: () => onFiltroStatusChanged(null),
+                ),
               ),
             ],
           ),
@@ -124,7 +143,8 @@ class InstrumentosFiltroDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      height: 40,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
@@ -133,20 +153,34 @@ class InstrumentosFiltroDropdown extends StatelessWidget {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: valor,
+          isExpanded: true,
+          isDense: true,
+          iconSize: 18,
           hint: Text(
             hint,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+            overflow: TextOverflow.ellipsis,
           ),
           borderRadius: BorderRadius.circular(10),
           items: [
             ...opcoes.map(
-              (opcao) =>
-                  DropdownMenuItem<String>(value: opcao, child: Text(opcao)),
+              (opcao) => DropdownMenuItem<String>(
+                value: opcao,
+                child: Text(
+                  opcao,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
             ),
             if (valor != null)
               const DropdownMenuItem<String>(
                 value: '__limpar__',
-                child: Text('Limpar filtro'),
+                child: Text(
+                  'Limpar',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12),
+                ),
               ),
           ],
           onChanged: (value) {

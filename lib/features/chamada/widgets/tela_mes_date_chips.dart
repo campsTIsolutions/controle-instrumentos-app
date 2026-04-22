@@ -76,12 +76,10 @@ class ChipAdicionarMes extends StatelessWidget {
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.add, size: 14, color: Color(0xFF1976D2)),
-            SizedBox(width: 4),
             Text(
-              '+ data',
+              '+',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF1976D2),
               ),

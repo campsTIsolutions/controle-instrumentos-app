@@ -242,15 +242,15 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
               ),
               const SizedBox(height: 12),
               InstrumentoText(
-                label: 'Numero do Patrimonio',
+                label: 'Número do Patrimônio',
                 controller: _patrimonioCtrl,
                 validator: (v) => v == null || v.trim().isEmpty
-                    ? 'Informe o patrimonio'
+                    ? 'Informe o patrimônio'
                     : null,
               ),
               const SizedBox(height: 12),
               InstrumentoText(
-                label: 'Observacoes',
+                label: 'Observações',
                 controller: _observacoesCtrl,
               ),
               const SizedBox(height: 12),
@@ -312,7 +312,7 @@ class _InstrumentoDialogState extends State<InstrumentoDialog> {
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text(
-                  'Disponivel',
+                  'Disponível',
                   style: TextStyle(color: Colors.white),
                 ),
                 value: _disponivel,

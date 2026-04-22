@@ -1,6 +1,9 @@
 // lib/features/chamada/supabase_service.dart
 // Camada de acesso ao Supabase — chamadas, alunos e aulas
 
+import 'dart:typed_data';
+
+import 'package:controle_instrumentos/core/config/storage_paths.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models.dart';
 
@@ -21,11 +24,13 @@ class SupabaseService {
         .order('nome_completo');
 
     return (data as List)
-        .map((row) => StudentRecord(
-              idAluno: row['id_aluno'] as int,
-              name: row['nome_completo'] as String,
-              attendance: {},
-            ))
+        .map(
+          (row) => StudentRecord(
+            idAluno: row['id_aluno'] as int,
+            name: row['nome_completo'] as String,
+            attendance: {},
+          ),
+        )
         .toList();
   }
 
@@ -74,10 +79,12 @@ class SupabaseService {
         .order('data');
 
     return (data as List)
-        .map((row) => AulaRecord(
-              id: row['id'] as String,
-              data: _soData(DateTime.parse(row['data'] as String)),
-            ))
+        .map(
+          (row) => AulaRecord(
+            id: row['id'] as String,
+            data: _soData(DateTime.parse(row['data'] as String)),
+          ),
+        )
         .toList();
   }
 
@@ -108,13 +115,15 @@ class SupabaseService {
         .eq('aula_id', aulaId);
 
     return (data as List)
-        .map((row) => ChamadaRecord(
-              id: row['id'] as String,
-              aulaId: row['aula_id'] as String,
-              idAluno: row['id_aluno'] as int,
-              status: _parseStatus(row['status'] as String?),
-              comprovanteUrl: row['comprovante_url'] as String?,
-            ))
+        .map(
+          (row) => ChamadaRecord(
+            id: row['id'] as String,
+            aulaId: row['aula_id'] as String,
+            idAluno: row['id_aluno'] as int,
+            status: _parseStatus(row['status'] as String?),
+            comprovanteUrl: row['comprovante_url'] as String?,
+          ),
+        )
         .toList();
   }
 
@@ -135,15 +144,12 @@ class SupabaseService {
       return;
     }
 
-    await _db.from('chamadas').upsert(
-      {
-        'aula_id': aulaId,
-        'id_aluno': idAluno,
-        'status': _statusToString(status),
-        'comprovante_url': comprovanteUrl,
-      },
-      onConflict: 'aula_id,id_aluno',
-    );
+    await _db.from('chamadas').upsert({
+      'aula_id': aulaId,
+      'id_aluno': idAluno,
+      'status': _statusToString(status),
+      'comprovante_url': comprovanteUrl,
+    }, onConflict: 'aula_id,id_aluno');
   }
 
   /// Salva todas as chamadas em lote. Ignora alunos com status 'none'.
@@ -157,8 +163,9 @@ class SupabaseService {
 
     for (final aluno in alunos) {
       final statuses = aluno.attendance[dataKey] ?? [AttendanceStatus.none];
-      final status =
-          statuses.isNotEmpty ? statuses.first : AttendanceStatus.none;
+      final status = statuses.isNotEmpty
+          ? statuses.first
+          : AttendanceStatus.none;
 
       // NUNCA salva 'none' — viola a constraint chamadas_status_check
       if (status == AttendanceStatus.none) continue;
@@ -174,6 +181,31 @@ class SupabaseService {
     if (rows.isNotEmpty) {
       await _db.from('chamadas').upsert(rows, onConflict: 'aula_id,id_aluno');
     }
+  }
+
+  static Future<String> uploadComprovanteAtestado({
+    required int idAluno,
+    required DateTime data,
+    required List<int> bytes,
+    required String originalFileName,
+  }) async {
+    final safeFileName = originalFileName
+        .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_')
+        .replaceAll(' ', '_');
+
+    final dataIso = _soData(data).toIso8601String().split('T').first;
+    final objectPath = StoragePaths.atestadoObjectPath(
+      idAluno: idAluno,
+      dataIso: dataIso,
+      safeFileName: safeFileName,
+      timestampMs: DateTime.now().millisecondsSinceEpoch,
+    );
+
+    await _db.storage
+        .from(StoragePaths.bucket)
+        .uploadBinary(objectPath, Uint8List.fromList(bytes));
+
+    return _db.storage.from(StoragePaths.bucket).getPublicUrl(objectPath);
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────

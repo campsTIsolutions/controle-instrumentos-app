@@ -7,6 +7,7 @@ import 'package:controle_instrumentos/features/alunos/widgets/alunos_list.dart';
 import 'package:controle_instrumentos/features/alunos/widgets/dialog_justificativa_exclusao.dart';
 import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
 import 'package:controle_instrumentos/shared/widgets/pagination_footer.dart';
+import 'package:controle_instrumentos/shared/widgets/profile_menu_button.dart';
 import 'package:controle_instrumentos/core/theme/theme.dart';
 import 'package:flutter/material.dart';
 
@@ -235,6 +236,7 @@ class _AlunosPageState extends State<AlunosPage> {
           preferredSize: Size.fromHeight(1),
           child: Divider(height: 1, color: Colors.grey),
         ),
+        actions: const [ProfileMenuButton()],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
