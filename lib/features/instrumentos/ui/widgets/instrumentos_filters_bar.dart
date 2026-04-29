@@ -73,14 +73,6 @@ class InstrumentosFiltersBar extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.sort_by_alpha,
-                          size: 15,
-                          color: ordenarAlfabetico
-                              ? const Color(0xFF2563EB)
-                              : const Color(0xFF374151),
-                        ),
-                        const SizedBox(width: 4),
                         Text(
                           'A-Z',
                           style: TextStyle(

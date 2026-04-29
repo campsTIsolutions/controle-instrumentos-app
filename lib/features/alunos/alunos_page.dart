@@ -163,8 +163,7 @@ class _AlunosPageState extends State<AlunosPage> {
           setState(() => _isSalvando = true);
 
           try {
-            String? imagemUrl = aluno?.imagemUrl;
-
+            String? imagemUrl;
             if (imagemFile != null) {
               final bytes = await imagemFile.readAsBytes();
               imagemUrl = await _alunosRepository.uploadFotoAluno(
@@ -173,8 +172,14 @@ class _AlunosPageState extends State<AlunosPage> {
               );
             }
 
-            final dadosFinais = {
+            final Map<String, dynamic> dadosFinais = {
               ...dados,
+
+              ...((dados.containsKey('imagem_url') &&
+                      dados['imagem_url'] == null)
+                  ? <String, dynamic>{'imagem_url': null}
+                  : <String, dynamic>{}),
+
               if (imagemUrl != null) 'imagem_url': imagemUrl,
             };
 

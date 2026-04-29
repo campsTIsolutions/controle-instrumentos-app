@@ -29,6 +29,7 @@ class _AlunoDialogState extends State<AlunoDialog> {
   bool _salvando = false;
 
   XFile? _imagemSelecionada;
+  bool _removerImagem = false;
   final _picker = ImagePicker();
 
   final _setores = ['Dança', 'Escudo', 'Pavilhão', 'Linha', 'Baliza'];
@@ -79,28 +80,42 @@ class _AlunoDialogState extends State<AlunoDialog> {
         (widget.aluno?['imagem_url'] != null &&
             (widget.aluno!['imagem_url'] as String).isNotEmpty);
 
-    final origem = await showAlunoImagemOrigemSheet(
+    final acao = await showAlunoImagemOrigemSheet(
       context: context,
       exibirRemover: possuiImagemAtual,
     );
 
     if (!mounted) return;
 
-    if (origem == null && _imagemSelecionada != null) {
-      setState(() => _imagemSelecionada = null);
+    // Usuário fechou o sheet sem selecionar nada — não faz nada
+    if (acao == null) return;
+
+    // Usuário clicou em "Remover foto"
+    if (acao == AlunoImagemAcao.remover) {
+      setState(() {
+        _imagemSelecionada = null;
+        _removerImagem = true;
+      });
       return;
     }
-    if (origem == null) return;
+
+    // Usuário escolheu câmera ou galeria
+    final source = acao == AlunoImagemAcao.camera
+        ? ImageSource.camera
+        : ImageSource.gallery;
 
     final imagem = await _picker.pickImage(
-      source: origem,
+      source: source,
       maxWidth: 800,
       maxHeight: 800,
       imageQuality: 85,
     );
 
     if (imagem != null && mounted) {
-      setState(() => _imagemSelecionada = imagem);
+      setState(() {
+        _imagemSelecionada = imagem;
+        _removerImagem = false;
+      });
     }
   }
 
@@ -120,6 +135,7 @@ class _AlunoDialogState extends State<AlunoDialog> {
           'id_instrumento': int.tryParse(_instrumentoCtrl.text.trim()),
         if (_idadeCtrl.text.trim().isNotEmpty)
           'idade': int.tryParse(_idadeCtrl.text.trim()),
+        if (_removerImagem) 'imagem_url': null,
       };
       await widget.onSalvar(dados, _imagemSelecionada);
     } catch (e) {
@@ -196,7 +212,7 @@ class _AlunoDialogState extends State<AlunoDialog> {
               const SizedBox(height: 20),
               AlunoDialogFotoSection(
                 imagemSelecionada: _imagemSelecionada,
-                imagemUrlExistente: imagemUrlExistente,
+                imagemUrlExistente: _removerImagem ? null : imagemUrlExistente,
                 onTap: _selecionarImagem,
               ),
               AlunoDialogFieldsSection(

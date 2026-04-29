@@ -3,11 +3,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-Future<ImageSource?> showAlunoImagemOrigemSheet({
+// Enum para distinguir a ação do usuário no bottom sheet de foto
+enum AlunoImagemAcao { camera, galeria, remover }
+
+// Retorna a ação escolhida ou null se o usuário fechou sem selecionar
+Future<AlunoImagemAcao?> showAlunoImagemOrigemSheet({
   required BuildContext context,
   required bool exibirRemover,
 }) {
-  return showModalBottomSheet<ImageSource>(
+  return showModalBottomSheet<AlunoImagemAcao>(
     context: context,
     backgroundColor: const Color(0xFF1E1E2E),
     shape: const RoundedRectangleBorder(
@@ -46,7 +50,7 @@ Future<ImageSource?> showAlunoImagemOrigemSheet({
                 'Câmera',
                 style: TextStyle(color: Colors.white),
               ),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              onTap: () => Navigator.pop(ctx, AlunoImagemAcao.camera),
               contentPadding: EdgeInsets.zero,
             ),
             ListTile(
@@ -66,7 +70,7 @@ Future<ImageSource?> showAlunoImagemOrigemSheet({
                 'Galeria',
                 style: TextStyle(color: Colors.white),
               ),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              onTap: () => Navigator.pop(ctx, AlunoImagemAcao.galeria),
               contentPadding: EdgeInsets.zero,
             ),
             if (exibirRemover)
@@ -87,7 +91,7 @@ Future<ImageSource?> showAlunoImagemOrigemSheet({
                   'Remover foto',
                   style: TextStyle(color: Color(0xFFEF4444)),
                 ),
-                onTap: () => Navigator.pop(ctx, null),
+                onTap: () => Navigator.pop(ctx, AlunoImagemAcao.remover),
                 contentPadding: EdgeInsets.zero,
               ),
           ],
