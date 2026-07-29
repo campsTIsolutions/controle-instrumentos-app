@@ -32,13 +32,14 @@ class _AlunoDialogState extends State<AlunoDialog> {
   bool _removerImagem = false;
   final _picker = ImagePicker();
 
-  final _setores = ['Dança', 'Escudo', 'Pavilhão', 'Linha', 'Baliza'];
+  final _setores = ['Banda', 'Escudo', 'Pavilhão', 'Linha', 'Baliza'];
   final _categorias = [
     'Mentor(a)',
     'Kids',
     'Avançar',
     'Aprendiz',
     'Ex-Aprendiz',
+    'Aluno',
   ];
   final _niveis = ['Iniciante', 'Intermediário', 'Avançado'];
 

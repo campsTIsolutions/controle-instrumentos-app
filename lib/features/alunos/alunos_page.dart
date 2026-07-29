@@ -44,9 +44,10 @@ class _AlunosPageState extends State<AlunosPage> {
     'Avançar',
     'Aprendiz',
     'Ex-Aprendiz',
+    'Aluno',
   ];
 
-  final _setores = ['Dança', 'Escudo', 'Pavilhão', 'Linha', 'Baliza'];
+  final _setores = ['Banda', 'Escudo', 'Pavilhão', 'Linha', 'Baliza'];
 
   @override
   void initState() {

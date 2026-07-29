@@ -11,21 +11,67 @@ import 'features/instrumentos/ui/instrumentos_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  if (!SupabaseConfig.isConfigured) {
-    throw StateError(
-      'Supabase nao configurado. Rode com '
-      '--dart-define=SUPABASE_URL=... '
-      '--dart-define=SUPABASE_ANON_KEY=...',
+  runApp(const BootstrapApp());
+}
+
+class BootstrapApp extends StatelessWidget {
+  const BootstrapApp({super.key});
+
+  Future<bool> _initialize() async {
+    if (!SupabaseConfig.isConfigured) {
+      throw StateError(
+        'Supabase nao configurado. Rode com '
+        '--dart-define=SUPABASE_URL=... '
+        '--dart-define=SUPABASE_ANON_KEY=...',
+      );
+    }
+
+    await Supabase.initialize(
+      url: SupabaseConfig.url,
+      anonKey: SupabaseConfig.anonKey,
     );
+
+    final session = Supabase.instance.client.auth.currentSession;
+    return session != null;
   }
 
-  await Supabase.initialize(
-    url: SupabaseConfig.url,
-    anonKey: SupabaseConfig.anonKey,
-  );
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: _initialize(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            home: const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
 
-  final session = Supabase.instance.client.auth.currentSession;
-  runApp(MyApp(hasSession: session != null));
+        if (snapshot.hasError) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            home: Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    'Falha ao iniciar o app:\n${snapshot.error}',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return MyApp(hasSession: snapshot.data ?? false);
+      },
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {

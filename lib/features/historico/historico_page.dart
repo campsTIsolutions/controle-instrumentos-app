@@ -43,8 +43,9 @@ class _HistoricoPageState extends State<HistoricoPage> {
     'Avançar',
     'Aprendiz',
     'Ex-Aprendiz',
+    'Aluno',
   ];
-  final _setores = ['Dança', 'Escudo', 'Pavilhão', 'Linha', 'Baliza'];
+  final _setores = ['Banda', 'Escudo', 'Pavilhão', 'Linha', 'Baliza'];
   final _motivos = [
     'Falta de Tempo',
     'Falta de Disciplina',

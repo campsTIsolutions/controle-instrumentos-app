@@ -124,9 +124,14 @@ class AlunosRepository implements AlunosRepositoryContract {
     var next = request;
 
     if (trimmedQuery.isNotEmpty) {
-      next = next.or(
-        'nome_completo.ilike.%$trimmedQuery%,numero_aluno.ilike.%$trimmedQuery%',
-      );
+      final isNumeric = int.tryParse(trimmedQuery) != null;
+      if (isNumeric) {
+        next = next.or(
+          'nome_completo.ilike.%$trimmedQuery%,numero_aluno.eq.$trimmedQuery',
+        );
+      } else {
+        next = next.ilike('nome_completo', '%$trimmedQuery%');
+      }
     }
 
     if (categorias.isNotEmpty) {
