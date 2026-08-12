@@ -7,8 +7,10 @@
 import 'package:flutter/material.dart';
 import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
 import 'package:controle_instrumentos/shared/widgets/profile_menu_button.dart';
+import 'exportacao/chamada_exportacao.dart';
 import 'supabase_service.dart';
 import 'tela_mes.dart';
+import 'widgets/chamada_exportacao_dialog.dart';
 
 class TelaAnual extends StatefulWidget {
   const TelaAnual({super.key});
@@ -29,6 +31,9 @@ class _TelaAnualState extends State<TelaAnual> {
   /// aulasPorMes[mes] = quantidade de aulas naquele mês (1-indexed)
   final Map<int, int> _aulasPorMes = {};
   bool _carregando = false;
+  bool _exportando = false;
+
+  final ChamadaExcelService _excelService = ChamadaExcelService();
 
   static const List<String> _nomesMeses = [
     'Janeiro',
@@ -110,6 +115,56 @@ class _TelaAnualState extends State<TelaAnual> {
     );
     // Recarrega contagem ao voltar (podem ter aulas adicionadas/removidas)
     _carregarAulasPorAno(_anoSelecionado);
+  }
+
+  Future<void> _abrirExportacao() async {
+    if (_exportando) return;
+    final selecao = await showDialog<SelecaoExportacaoChamada>(
+      context: context,
+      builder: (_) => ChamadaExportacaoDialog(
+        anoSelecionado: _anoSelecionado,
+        anoMinimo: _anoMin,
+        anoMaximo: _anoMax,
+      ),
+    );
+    if (selecao == null || !mounted) return;
+
+    setState(() => _exportando = true);
+    try {
+      final resultado = await _excelService.exportar(selecao);
+      if (!mounted) return;
+      if (!resultado.exportado) {
+        _mostrarAviso('Nenhuma aula registrada neste período');
+        return;
+      }
+      _mostrarAviso(
+        'Arquivo ${resultado.nomeArquivo} salvo em ${resultado.localSalvamento}.',
+      );
+    } on PermissaoArmazenamentoNegadaException catch (e) {
+      if (!mounted) return;
+      _mostrarAviso(
+        e.mensagem,
+        action: SnackBarAction(
+          label: 'Configurações',
+          onPressed: () async {
+            final aberto = await _excelService.abrirConfiguracoesDoApp();
+            if (!aberto && mounted) {
+              _mostrarAviso('Não foi possível abrir as configurações do app.');
+            }
+          },
+        ),
+      );
+    } catch (e) {
+      if (mounted) _mostrarAviso('Erro ao exportar a chamada: $e');
+    } finally {
+      if (mounted) setState(() => _exportando = false);
+    }
+  }
+
+  void _mostrarAviso(String mensagem, {SnackBarAction? action}) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(mensagem), action: action));
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -250,6 +305,43 @@ class _TelaAnualState extends State<TelaAnual> {
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  Tooltip(
+                    message: 'Exportar chamada para Excel',
+                    child: Semantics(
+                      button: true,
+                      label: 'Exportar chamada para Excel',
+                      child: SizedBox(
+                        width: 42,
+                        height: 38,
+                        child: FilledButton(
+                          key: const Key('botao_exportar_chamada'),
+                          style: FilledButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            backgroundColor: const Color(0xFF2E7D32),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: _exportando ? null : _abrirExportacao,
+                          child: _exportando
+                              ? const SizedBox(
+                                  width: 17,
+                                  height: 17,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.file_download_outlined,
+                                  size: 21,
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   _buildDropdownAno(),
                 ],
               ),

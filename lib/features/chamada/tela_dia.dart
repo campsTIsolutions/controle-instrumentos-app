@@ -10,6 +10,7 @@ import 'atestado_utils.dart';
 import 'models.dart';
 import 'widgets.dart';
 import 'supabase_service.dart';
+import 'student_sort.dart';
 import 'tela_atestado.dart';
 
 class TelaDia extends StatefulWidget {
@@ -46,7 +47,7 @@ class _TelaDiaState extends State<TelaDia> {
   void initState() {
     super.initState();
     if (widget.students != null) {
-      _students = widget.students!;
+      _students = ordenarAlunosPorNome(widget.students!);
       _carregando = false;
     } else {
       _carregarAlunos();

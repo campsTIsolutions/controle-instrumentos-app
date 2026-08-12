@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:controle_instrumentos/features/instrumentos/ui/widgets/app_drawer.dart';
 import 'package:controle_instrumentos/shared/widgets/profile_menu_button.dart';
+import 'aula_sort.dart';
 import 'models.dart';
 import 'supabase_service.dart';
 import 'tela_atestado.dart';
@@ -58,7 +59,7 @@ class _TelaMesState extends State<TelaMes> {
       ]);
 
       final listaAlunos = resultados[0] as List<StudentRecord>;
-      final listaAulas = resultados[1] as List<AulaRecord>;
+      final listaAulas = ordenarAulasPorData(resultados[1] as List<AulaRecord>);
 
       final chamadasPorAula = await Future.wait(
         listaAulas.map(

@@ -5,7 +5,9 @@ import 'dart:typed_data';
 
 import 'package:controle_instrumentos/core/config/storage_paths.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'aula_sort.dart';
 import 'models.dart';
+import 'student_sort.dart';
 
 class SupabaseService {
   static final _db = Supabase.instance.client;
@@ -21,9 +23,9 @@ class SupabaseService {
     final data = await _db
         .from('alunos')
         .select('id_aluno, nome_completo')
-        .order('nome_completo');
+        .order('nome_completo', ascending: true);
 
-    return (data as List)
+    final alunos = (data as List)
         .map(
           (row) => StudentRecord(
             idAluno: row['id_aluno'] as int,
@@ -32,6 +34,8 @@ class SupabaseService {
           ),
         )
         .toList();
+
+    return ordenarAlunosPorNome(alunos);
   }
 
   static Future<StudentRecord> inserirAluno({
@@ -76,9 +80,9 @@ class SupabaseService {
         .select('id, data')
         .gte('data', inicio)
         .lte('data', fim)
-        .order('data');
+        .order('data', ascending: true);
 
-    return (data as List)
+    final aulas = (data as List)
         .map(
           (row) => AulaRecord(
             id: row['id'] as String,
@@ -86,6 +90,33 @@ class SupabaseService {
           ),
         )
         .toList();
+
+    return ordenarAulasPorData(aulas);
+  }
+
+  static Future<List<AulaRecord>> fetchAulasPeriodo({
+    required DateTime inicio,
+    required DateTime fim,
+  }) async {
+    final inicioIso = _soData(inicio).toIso8601String().split('T').first;
+    final fimIso = _soData(fim).toIso8601String().split('T').first;
+    final data = await _db
+        .from('aulas')
+        .select('id, data')
+        .gte('data', inicioIso)
+        .lte('data', fimIso)
+        .order('data', ascending: true);
+
+    final aulas = (data as List)
+        .map(
+          (row) => AulaRecord(
+            id: row['id'] as String,
+            data: _soData(DateTime.parse(row['data'] as String)),
+          ),
+        )
+        .toList();
+
+    return ordenarAulasPorData(aulas);
   }
 
   static Future<AulaRecord> inserirAula({required DateTime data}) async {
@@ -115,6 +146,55 @@ class SupabaseService {
         .eq('aula_id', aulaId);
 
     return (data as List)
+        .map(
+          (row) => ChamadaRecord(
+            id: row['id'] as String,
+            aulaId: row['aula_id'] as String,
+            idAluno: row['id_aluno'] as int,
+            status: _parseStatus(row['status'] as String?),
+            comprovanteUrl: row['comprovante_url'] as String?,
+          ),
+        )
+        .toList();
+  }
+
+  static Future<List<ChamadaRecord>> fetchChamadasPorAulas(
+    List<String> idsAulas,
+  ) async {
+    if (idsAulas.isEmpty) return [];
+
+    // A API do Supabase limita a quantidade de linhas por resposta. A busca
+    // paginada evita perder chamadas na exportação de períodos longos.
+    const tamanhoPagina = 500;
+    const tamanhoLoteAulas = 50;
+    final linhas = <dynamic>[];
+    final idsUnicos = idsAulas.toSet().toList();
+
+    for (var inicioLote = 0; inicioLote < idsUnicos.length;) {
+      final fimLote = (inicioLote + tamanhoLoteAulas).clamp(
+        0,
+        idsUnicos.length,
+      );
+      final loteIds = idsUnicos.sublist(inicioLote, fimLote);
+      var inicioPagina = 0;
+
+      while (true) {
+        final pagina = await _db
+            .from('chamadas')
+            .select('id, aula_id, id_aluno, status, comprovante_url')
+            .inFilter('aula_id', loteIds)
+            .order('id')
+            .range(inicioPagina, inicioPagina + tamanhoPagina - 1);
+        final paginaLista = pagina as List;
+        linhas.addAll(paginaLista);
+
+        if (paginaLista.length < tamanhoPagina) break;
+        inicioPagina += tamanhoPagina;
+      }
+      inicioLote = fimLote;
+    }
+
+    return linhas
         .map(
           (row) => ChamadaRecord(
             id: row['id'] as String,

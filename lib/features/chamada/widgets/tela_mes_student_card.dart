@@ -26,6 +26,14 @@ class CardAlunoMes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final statusRegistrados = dates
+        .map(
+          (date) =>
+              student.attendance[soData(date)]?.first ?? AttendanceStatus.none,
+        )
+        .where((status) => status != AttendanceStatus.none)
+        .toList();
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -43,6 +51,7 @@ class CardAlunoMes extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleAvatar(
                 radius: 18,
@@ -60,43 +69,48 @@ class CardAlunoMes extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  student.name,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-              ...dates.map((d) {
-                final status =
-                    student.attendance[soData(d)]?.first ??
-                    AttendanceStatus.none;
-                if (status == AttendanceStatus.none) {
-                  return const SizedBox.shrink();
-                }
-                return Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Container(
-                    width: 26,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: status.backgroundColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      status.label,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      student.name,
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
                       ),
                     ),
-                  ),
-                );
-              }),
+                    if (statusRegistrados.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 4,
+                        children: statusRegistrados
+                            .map(
+                              (status) => Container(
+                                width: 26,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: status.backgroundColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  status.label,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ],
           ),
           if (dates.isNotEmpty) ...[
